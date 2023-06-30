@@ -45,7 +45,8 @@ contract AtomicSwap {
     modifier checkSafe(
         address redeemer,
         address intiator,
-        uint256 expiry
+        uint256 expiry,
+        uint256 amount
     ) {
         require(
             redeemer != address(0),
@@ -59,6 +60,7 @@ contract AtomicSwap {
             expiry > block.number,
             "AtomicSwap: expiry cannot be lower than current block"
         );
+        require(amount > 0, "AtomicSwap: amount cannot be equal to zero");
 
         _;
     }
@@ -82,7 +84,7 @@ contract AtomicSwap {
         uint256 _expiry,
         uint256 _amount,
         bytes32 _secretHash
-    ) external checkSafe(_redeemer, msg.sender, _expiry) {
+    ) external checkSafe(_redeemer, msg.sender, _expiry, _amount) {
         Order memory order = atomicSwapOrders[_secretHash];
         require(
             order.redeemer == address(0x0),
