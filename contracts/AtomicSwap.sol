@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract AtomicSwap {
+    using SafeERC20 for IERC20;
     IERC20 immutable token;
 
     struct Order {
@@ -50,10 +51,9 @@ contract AtomicSwap {
         bytes32 _secretHash
     ) external checkSafe(_redeemer, msg.sender, _expiry) {
         Order memory order = AtomicSwapOrders[_secretHash];
-        require(!order.isFullfilled, "AtomicSwap: cannot reuse secret");
         require(
             order.redeemer == address(0x0),
-            "AtomicSwap: order already exists"
+            "AtomicSwap: insecure secret hash"
         );
         Order memory newOrder = Order({
             redeemer: _redeemer,
@@ -62,9 +62,9 @@ contract AtomicSwap {
             amount: _amount,
             isFullfilled: false
         });
-        token.transferFrom(msg.sender, address(this), newOrder.amount);
         AtomicSwapOrders[_secretHash] = newOrder;
         emit Initiated(_secretHash, newOrder.amount);
+        token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
     function redeem(bytes calldata _secret) external {
@@ -76,8 +76,8 @@ contract AtomicSwap {
         );
         require(!order.isFullfilled, "AtomicSwap: order already fullfilled");
         order.isFullfilled = true;
-        token.transfer(order.redeemer, order.amount);
         emit Redeemed(secretHash, _secret);
+        token.safeTransfer(order.redeemer, order.amount);
     }
 
     function refund(bytes32 _secretHash) external {
@@ -89,7 +89,7 @@ contract AtomicSwap {
         require(!order.isFullfilled, "AtomicSwap: order already fullfilled");
         require(block.number > order.expiry, "AtomicSwap: lock not expired");
         order.isFullfilled = true;
-        token.transfer(order.initiator, order.amount);
         emit Refunded(_secretHash);
+        token.safeTransfer(order.initiator, order.amount);
     }
 }
