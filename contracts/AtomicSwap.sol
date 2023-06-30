@@ -50,7 +50,7 @@ contract AtomicSwap {
         uint256 _amount,
         bytes32 _secretHash
     ) external checkSafe(_redeemer, msg.sender, _expiry) {
-        Order memory order = AtomicSwapOrders[_secretHash];
+        Order memory order = atomicSwapOrders[_secretHash];
         require(
             order.redeemer == address(0x0),
             "AtomicSwap: insecure secret hash"
@@ -62,14 +62,14 @@ contract AtomicSwap {
             amount: _amount,
             isFulfilled: false
         });
-        AtomicSwapOrders[_secretHash] = newOrder;
+        atomicSwapOrders[_secretHash] = newOrder;
         emit Initiated(_secretHash, newOrder.amount);
         token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
     function redeem(bytes calldata _secret) external {
         bytes32 secretHash = sha256(_secret);
-        Order storage order = AtomicSwapOrders[secretHash];
+        Order storage order = atomicSwapOrders[secretHash];
         require(
             order.redeemer != address(0x0),
             "AtomicSwap: invalid secret or order not initiated"
@@ -81,7 +81,7 @@ contract AtomicSwap {
     }
 
     function refund(bytes32 _secretHash) external {
-        Order storage order = AtomicSwapOrders[_secretHash];
+        Order storage order = atomicSwapOrders[_secretHash];
         require(
             order.redeemer != address(0x0),
             "AtomicSwap: order not initated"
