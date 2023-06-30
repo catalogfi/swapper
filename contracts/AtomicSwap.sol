@@ -3,6 +3,18 @@ pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/**
+ * @author  Catalog
+ * @title   HTLC smart contract for atomic swaps
+ * @notice  Any signer can create an order to serve as one of either halfs of an cross chain
+ *          atomic swap.
+ * @dev     The contracts can be used to create an order to serve as the the commitment for two
+ *          types of users :
+ *          Initiator functions:1. initate
+ *                              2. refund
+ *          Redeemer funtions:1. redeem
+ */
+
 contract AtomicSwap {
     using SafeERC20 for IERC20;
     IERC20 immutable token;
@@ -20,6 +32,16 @@ contract AtomicSwap {
     event Initiated(bytes32 indexed secrectHash, uint256 amount);
     event Refunded(bytes32 indexed secrectHash);
 
+    /**
+     * @notice  .
+     * @dev     provides checks to ensure
+     *              1.redeemer is not null address
+     *              2.redeemer is not same as the refunder
+     *              3.expiry is grater than current block number
+     * @param   redeemer  public address of the reedeem
+     * @param   intiator  public address of the initator
+     * @param   expiry  block number for expiry of redemtion
+     */
     modifier checkSafe(
         address redeemer,
         address intiator,
@@ -37,6 +59,7 @@ contract AtomicSwap {
             expiry > block.number,
             "AtomicSwap: expiry cannot be lower than current block"
         );
+
         _;
     }
 
@@ -44,6 +67,16 @@ contract AtomicSwap {
         token = IERC20(_token);
     }
 
+    /**
+     * @notice  Signers can create an order with order params
+     * @dev     Secret used to generate secret hash for iniatiation should be generated randomly
+     *          and sha256 hash should be used to support hashing methods on other non-evm chains.
+     *          Signers cannot generate orders with same secret hash or override an existing order.
+     * @param   _redeemer  public address of the redeemer
+     * @param   _expiry block number for expiry of redemtion
+     * @param   _amount  amount of tokens to trade
+     * @param   _secretHash  sha256 hash of the secret used for redemtion
+     */
     function initiate(
         address _redeemer,
         uint256 _expiry,
@@ -67,6 +100,13 @@ contract AtomicSwap {
         token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
+    /**
+     * @notice  Signers with correct secret to an order's secret hash can redeem to claim the locked
+     *          token
+     * @dev     Signers are not allowed to redeem an order with wrong secret or redeem the same order
+     *          multiple times
+     * @param   _secret  secret used to redeem an order
+     */
     function redeem(bytes calldata _secret) external {
         bytes32 secretHash = sha256(_secret);
         Order storage order = atomicSwapOrders[secretHash];
@@ -80,6 +120,12 @@ contract AtomicSwap {
         token.safeTransfer(order.redeemer, order.amount);
     }
 
+    /**
+     * @notice  Signers can refund the locked assets after expiry block number
+     * @dev     Signers cannot refund the an order before epiry block number or refund the same order
+     *          multiple times
+     * @param   _secretHash  sha256 hash of the secret used for redemtion
+     */
     function refund(bytes32 _secretHash) external {
         Order storage order = atomicSwapOrders[_secretHash];
         require(
