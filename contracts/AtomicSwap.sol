@@ -25,7 +25,6 @@ contract AtomicSwap {
         address intiator,
         uint256 expiry
     ) {
-        _;
         require(
             redeemer != address(0),
             "AtomicSwap: redeemer cannot be null address"
@@ -38,6 +37,7 @@ contract AtomicSwap {
             expiry > block.number,
             "AtomicSwap: expiry cannot be lower than current block"
         );
+        _;
     }
 
     constructor(address _token) {
