@@ -12,9 +12,9 @@ contract AtomicSwap {
         address initiator;
         uint256 expiry;
         uint256 amount;
-        bool isFullfilled;
+        bool isFulfilled;
     }
-    mapping(bytes32 => Order) AtomicSwapOrders;
+    mapping(bytes32 => Order) atomicSwapOrders;
 
     event Redeemed(bytes32 indexed secrectHash, bytes _secret);
     event Initiated(bytes32 indexed secrectHash, uint256 amount);
@@ -60,7 +60,7 @@ contract AtomicSwap {
             initiator: msg.sender,
             expiry: _expiry,
             amount: _amount,
-            isFullfilled: false
+            isFulfilled: false
         });
         AtomicSwapOrders[_secretHash] = newOrder;
         emit Initiated(_secretHash, newOrder.amount);
@@ -74,8 +74,8 @@ contract AtomicSwap {
             order.redeemer != address(0x0),
             "AtomicSwap: invalid secret or order not initiated"
         );
-        require(!order.isFullfilled, "AtomicSwap: order already fullfilled");
-        order.isFullfilled = true;
+        require(!order.isFulfilled, "AtomicSwap: order already fullfilled");
+        order.isFulfilled = true;
         emit Redeemed(secretHash, _secret);
         token.safeTransfer(order.redeemer, order.amount);
     }
@@ -86,9 +86,9 @@ contract AtomicSwap {
             order.redeemer != address(0x0),
             "AtomicSwap: order not initated"
         );
-        require(!order.isFullfilled, "AtomicSwap: order already fullfilled");
+        require(!order.isFulfilled, "AtomicSwap: order already fullfilled");
         require(block.number > order.expiry, "AtomicSwap: lock not expired");
-        order.isFullfilled = true;
+        order.isFulfilled = true;
         emit Refunded(_secretHash);
         token.safeTransfer(order.initiator, order.amount);
     }
