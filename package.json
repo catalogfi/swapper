@@ -9,7 +9,7 @@
     "devDependencies": {
         "@ethersproject/abi": "^5.7.0",
         "@ethersproject/providers": "^5.7.2",
-        "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+        "@nomicfoundation/hardhat-chai-matchers": "^2.0.1",
         "@nomicfoundation/hardhat-ethers": "^3.0.0",
         "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
         "@nomicfoundation/hardhat-toolbox": "^3.0.0",
@@ -26,7 +26,7 @@
         "hardhat": "^2.16.1",
         "hardhat-deploy": "^0.11.34",
         "hardhat-gas-reporter": "^1.0.8",
-        "solidity-coverage": "^0.8.1",
+        "solidity-coverage": "^0.8.3",
         "ts-node": "^10.9.1",
         "typechain": "^8.2.0",
         "typescript": "^5.1.6"

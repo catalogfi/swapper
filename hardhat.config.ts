@@ -20,15 +20,6 @@ const config: HardhatUserConfig = {
         enabled: true,
         currency: "USD",
     },
-    networks: {
-        hardhat: {
-            forking: {
-                url:
-                    "https://mainnet.infura.io/v3/" +
-                    process.env.INFURA_API_KEY,
-            },
-        },
-    },
 };
 
 export default config;

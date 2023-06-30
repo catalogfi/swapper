@@ -770,7 +770,7 @@
     mcl-wasm "^0.7.1"
     rustbn.js "~0.2.0"
 
-"@nomicfoundation/hardhat-chai-matchers@^2.0.0":
+"@nomicfoundation/hardhat-chai-matchers@^2.0.1":
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-chai-matchers/-/hardhat-chai-matchers-2.0.1.tgz#0804661e883cd24b5d860f67aeed08a4845c5b6d"
   integrity sha512-qWKndseO8IPt8HiVamgEAutcBOYtX7/O6NPfe7uMNWxY2ywWaiWjDcRFuYYqxrZOMyQZl6ZuiHxbaRNctTUgLw==
@@ -5006,7 +5006,7 @@ solc@0.8.15:
     semver "^5.5.0"
     tmp "0.0.33"
 
-solidity-coverage@^0.8.1:
+solidity-coverage@^0.8.3:
   version "0.8.3"
   resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.8.3.tgz#72ce51e5ca9ea1182bbf6085eb1cf526f0603b52"
   integrity sha512-hbcNgj5z8zzgTlnp4F0pXiqj1v5ua8P4DH5i9cWOBtFPfUuIohLoXu5WiAixexWmpKVjyxXqupnu/mPb4IGr7Q==

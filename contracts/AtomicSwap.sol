@@ -10,9 +10,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  *          atomic swap.
  * @dev     The contracts can be used to create an order to serve as the the commitment for two
  *          types of users :
- *          Initiator functions:1. initate
- *                              2. refund
- *          Redeemer funtions:1. redeem
+ *          Initiator functions: 1. initate
+ *                               2. refund
+ *          Redeemer funtions: 1. redeem
  */
 
 contract AtomicSwap {
@@ -26,7 +26,7 @@ contract AtomicSwap {
         uint256 amount;
         bool isFulfilled;
     }
-    mapping(bytes32 => Order) atomicSwapOrders;
+    mapping(bytes32 => Order) public atomicSwapOrders;
 
     event Redeemed(bytes32 indexed secrectHash, bytes _secret);
     event Initiated(bytes32 indexed secrectHash, uint256 amount);
@@ -35,12 +35,14 @@ contract AtomicSwap {
     /**
      * @notice  .
      * @dev     provides checks to ensure
-     *              1.redeemer is not null address
-     *              2.redeemer is not same as the refunder
-     *              3.expiry is grater than current block number
+     *              1. redeemer is not null address
+     *              2. redeemer is not same as the refunder
+     *              3. expiry is grater than current block number
+     *              4. amount is not zero
      * @param   redeemer  public address of the reedeem
      * @param   intiator  public address of the initator
      * @param   expiry  block number for expiry of redemtion
+     * @param   amount  amount of tokens to trade
      */
     modifier checkSafe(
         address redeemer,
@@ -48,20 +50,16 @@ contract AtomicSwap {
         uint256 expiry,
         uint256 amount
     ) {
-        require(
-            redeemer != address(0),
-            "AtomicSwap: redeemer cannot be null address"
-        );
+        require(redeemer != address(0), "AtomicSwap: invalid redeemer address");
         require(
             intiator != redeemer,
-            "AtomicSwap: initiator cannot be equal to redeemer"
+            "AtomicSwap: redeemer and initiator cannot be the same"
         );
         require(
             expiry > block.number,
             "AtomicSwap: expiry cannot be lower than current block"
         );
-        require(amount > 0, "AtomicSwap: amount cannot be equal to zero");
-
+        require(amount > 0, "AtomicSwap: amount cannot be zero");
         _;
     }
 
@@ -114,9 +112,9 @@ contract AtomicSwap {
         Order storage order = atomicSwapOrders[secretHash];
         require(
             order.redeemer != address(0x0),
-            "AtomicSwap: invalid secret or order not initiated"
+            "AtomicSwap: order not initated or invalid secret"
         );
-        require(!order.isFulfilled, "AtomicSwap: order already fullfilled");
+        require(!order.isFulfilled, "AtomicSwap: order already fulfilled");
         order.isFulfilled = true;
         emit Redeemed(secretHash, _secret);
         token.safeTransfer(order.redeemer, order.amount);
@@ -134,8 +132,8 @@ contract AtomicSwap {
             order.redeemer != address(0x0),
             "AtomicSwap: order not initated"
         );
-        require(!order.isFulfilled, "AtomicSwap: order already fullfilled");
-        require(block.number > order.expiry, "AtomicSwap: lock not expired");
+        require(!order.isFulfilled, "AtomicSwap: order already fulfilled");
+        require(block.number > order.expiry, "AtomicSwap: order not expired");
         order.isFulfilled = true;
         emit Refunded(_secretHash);
         token.safeTransfer(order.initiator, order.amount);
