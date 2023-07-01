@@ -37,7 +37,7 @@ contract AtomicSwap {
      * @dev     provides checks to ensure
      *              1. redeemer is not null address
      *              2. redeemer is not same as the refunder
-     *              3. expiry is grater than current block number
+     *              3. expiry is greater than current block number
      *              4. amount is not zero
      * @param   redeemer  public address of the reedeem
      * @param   intiator  public address of the initator
@@ -73,7 +73,7 @@ contract AtomicSwap {
      *          and sha256 hash should be used to support hashing methods on other non-evm chains.
      *          Signers cannot generate orders with same secret hash or override an existing order.
      * @param   _redeemer  public address of the redeemer
-     * @param   _expiry block number for expiry of redemtion
+     * @param   _expiry  block number for expiry of redemtion
      * @param   _amount  amount of tokens to trade
      * @param   _secretHash  sha256 hash of the secret used for redemtion
      */
