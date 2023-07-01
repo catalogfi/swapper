@@ -1,9 +1,9 @@
-name: Slither Analysis
+name: Tests Analysis
 
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  analyze:
+  build:
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -20,11 +20,5 @@ jobs:
       - name: Install Project Dependencies
         run: yarn install
 
-      - name: Run Slither
-        uses: crytic/slither-action@v0.3.0
-        with:
-          node-version: 18
-          fail-on: high
-          solc-version: 0.8.18
-          target: contracts/**/*.sol
-          slither-args: "--solc-remaps '@=node_modules/@'"
+      - name: Run Tests
+        run: npx hardhat test
