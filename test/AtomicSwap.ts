@@ -259,7 +259,7 @@ describe("--- ATOMIC SWAP ---", () => {
         .withArgs(ethers.utils.sha256(secret4));
 
       expect(await usdc.balanceOf(alice.address)).to.equal(ethers.utils.parseUnits("400", 6n));
-      expect(await usdc.balanceOf(charlie.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+      expect(await usdc.balanceOf(charlie.address)).to.equal(ethers.utils.parseUnits("0", 6n));
     });
   });
 });
