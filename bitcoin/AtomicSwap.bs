@@ -1,0 +1,19 @@
+OP_IF
+    OP_SHA256
+    ${secretHash}
+    OP_EQUALVERIFY
+    OP_DUP
+    OP_HASH160
+    ${redeemerAddress}
+    OP_EQUALVERIFY
+    OP_CHECKSIG
+OP_ELSE
+    ${waitTime}
+    OP_CHECKSEQUENCEVERIFY
+    OP_DROP
+    OP_DUP
+    OP_HASH160
+    ${initiatorAddress}
+    OP_EQUALVERIFY
+    OP_CHECKSIG
+OP_ENDIF
