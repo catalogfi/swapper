@@ -9,7 +9,7 @@ import { latestBlock } from "@nomicfoundation/hardhat-network-helpers/dist/src/h
 
 use(solidity);
 
-describe("--- ATOMIC SWAP ---", () => {
+describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -34,6 +34,11 @@ describe("--- ATOMIC SWAP ---", () => {
     const AtomicSwap = await ethers.getContractFactory("AtomicSwap");
     atomicSwap = (await AtomicSwap.deploy(usdc.address)) as AtomicSwap;
     await atomicSwap.deployed();
+
+    secret1 = randomBytes(32);
+    secret2 = randomBytes(32);
+    secret3 = randomBytes(32);
+    secret4 = randomBytes(32);
   });
 
   describe("- Pre-conditions -", () => {
@@ -65,6 +70,15 @@ describe("--- ATOMIC SWAP ---", () => {
 
     it("AtomicSwap should have 0 USDC", async () => {
       expect(await usdc.balanceOf(atomicSwap.address)).to.equal(0n);
+    });
+
+    it("Secrets should be different", async () => {
+      expect(secret1).to.not.equal(secret2);
+      expect(secret1).to.not.equal(secret3);
+      expect(secret1).to.not.equal(secret4);
+      expect(secret2).to.not.equal(secret3);
+      expect(secret2).to.not.equal(secret4);
+      expect(secret3).to.not.equal(secret4);
     });
   });
 
@@ -130,8 +144,6 @@ describe("--- ATOMIC SWAP ---", () => {
     });
 
     it("Alice should be able to initiate a swap", async () => {
-      secret1 = randomBytes(32);
-
       await expect(
         atomicSwap
           .connect(alice)
@@ -153,8 +165,6 @@ describe("--- ATOMIC SWAP ---", () => {
       await usdc.connect(owner).transfer(alice.address, ethers.utils.parseUnits("500", 6n));
       expect(await usdc.balanceOf(alice.address)).to.equal(ethers.utils.parseUnits("500", 6n));
 
-      secret2 = randomBytes(32);
-
       await expect(
         atomicSwap
           .connect(alice)
@@ -163,8 +173,6 @@ describe("--- ATOMIC SWAP ---", () => {
         .to.emit(atomicSwap, "Initiated")
         .withArgs(ethers.utils.sha256(secret2), ethers.utils.parseUnits("100", 6n));
 
-      secret3 = randomBytes(32);
-
       await expect(
         atomicSwap
           .connect(alice)
@@ -172,8 +180,6 @@ describe("--- ATOMIC SWAP ---", () => {
       )
         .to.emit(atomicSwap, "Initiated")
         .withArgs(ethers.utils.sha256(secret3), ethers.utils.parseUnits("100", 6n));
-
-      secret4 = randomBytes(32);
 
       await expect(
         atomicSwap
