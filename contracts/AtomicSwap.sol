@@ -17,7 +17,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract AtomicSwap {
     using SafeERC20 for IERC20;
-    IERC20 immutable token;
+    IERC20 public immutable token;
 
     struct Order {
         address redeemer;
