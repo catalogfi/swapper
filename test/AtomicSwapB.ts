@@ -1,4 +1,3 @@
-import { ethers } from "hardhat";
 import { exec } from "child_process";
 import { expect } from "chai";
 import { randomBytes } from "crypto";
