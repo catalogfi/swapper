@@ -12,6 +12,31 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Install Docker Desktop
+        run: |
+          sudo apt-get update
+          sudo apt-get install \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            gnupg-agent \
+            software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) \
+            stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+      - name: Start Docker
+        run: sudo service docker start
+
+      - name: Install and run Nigiri
+        run: |
+          curl https://getnigiri.vulpem.com | bash
+          nigiri start
+
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
         with:
