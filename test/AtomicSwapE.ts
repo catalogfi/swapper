@@ -80,6 +80,10 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       expect(secret2).to.not.equal(secret4);
       expect(secret3).to.not.equal(secret4);
     });
+
+    it("AtomicSwap should be deployed with correct USDC address", async () => {
+      expect(await atomicSwap.token()).to.equal(usdc.address);
+    });
   });
 
   describe("- Atomic Swap - Initiate -", () => {
