@@ -70,7 +70,12 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     return requiredUTXOs;
   };
 
-  const sendBTC = async (from: ECPairInterface, to: string, amount: number, index: number) => {
+  const sendBTC = async (
+    from: ECPairInterface,
+    to: string,
+    amount: number,
+    index: number
+  ) => {
     const fromAddress = getP2PKHAddress(from.publicKey, network);
     if (!fromAddress) throw new Error("Unable to generate from address");
 
@@ -78,7 +83,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
     const psbt = new bitcoin.Psbt({ network });
     for (const utxo of utxos) {
-      const { data: txHex } = await axios.get(`${indexerURL}/tx/${utxo.txId}/hex`);
+      const { data: txHex } = await axios.get(
+        `${indexerURL}/tx/${utxo.txId}/hex`
+      );
 
       psbt.addInput({
         hash: utxo.txId,
@@ -141,7 +148,8 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
       const charlieAddress = getP2PKHAddress(charlie.publicKey, network);
 
-      if (!aliceAddress || !bobAddress || !charlieAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress || !charlieAddress)
+        throw new Error("Unable to generate addresses");
 
       let aliceBalance = await getBalance(aliceAddress);
       let bobBalance = await getBalance(bobAddress);
@@ -177,7 +185,13 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       let flag: boolean;
       try {
-        BuildAtomicSwapScript(sha256(secret1).slice(2), "", aliceAddress, 10, network);
+        BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          "",
+          aliceAddress,
+          10,
+          network
+        );
         flag = false;
       } catch (e: any) {
         flag = true;
@@ -189,7 +203,8 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Alice should be able to initiate a swap", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
       const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
         sha256(secret1).slice(2),
@@ -202,7 +217,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
       await sendBTC(alice, atomicSwapScriptAddress, 100000000, 0);
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
-      const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+      const { data } = await axios.get(
+        `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+      );
 
       expect(data.length).to.be.equal(1);
 
@@ -213,7 +230,8 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Alice should be able to initiate another swaps with different secret", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
       const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
         sha256(secret2).slice(2),
@@ -226,7 +244,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
       await sendBTC(alice, atomicSwapScriptAddress, 70000000, 1);
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
-      const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+      const { data } = await axios.get(
+        `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+      );
 
       expect(data.length).to.be.equal(1);
 
@@ -239,9 +259,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Bob should not be able to redeem a swap with invalid secret", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret1).slice(2),
+        bobAddress,
+        aliceAddress,
+        10,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -250,7 +277,12 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        100000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
@@ -268,7 +300,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       exec("nigiri push " + txHex, (error, stdout, stderr) => {
         if (error) {
-          expect(error.message).to.contain("Script failed an OP_EQUALVERIFY operation");
+          expect(error.message).to.contain(
+            "Script failed an OP_EQUALVERIFY operation"
+          );
           return;
         }
       });
@@ -278,9 +312,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Bob should be able to redeem a swap with valid secret", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret1).slice(2),
+        bobAddress,
+        aliceAddress,
+        10,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -289,7 +330,12 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        100000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
@@ -319,9 +365,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Bob should not be able to redeem a swap with the same secret", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret1).slice(2),
+        bobAddress,
+        aliceAddress,
+        10,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -330,7 +383,12 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        100000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
@@ -349,7 +407,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       exec("nigiri push " + txHex, (error, stdout, stderr) => {
         if (error) {
-          expect(error.message).to.contain("Transaction already in block chain");
+          expect(error.message).to.contain(
+            "Transaction already in block chain"
+          );
           return;
         }
       });
@@ -367,9 +427,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret1).slice(2),
+        bobAddress,
+        aliceAddress,
+        10,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -378,12 +445,20 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        100000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
           input: bitcoin.script.compile([
-            bitcoin.script.signature.encode(alice.sign(signatureHash), hashType),
+            bitcoin.script.signature.encode(
+              alice.sign(signatureHash),
+              hashType
+            ),
             alice.publicKey,
             Buffer.from([]),
           ]),
@@ -406,9 +481,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Alice should not be able to refund a swap earlier than the locktime", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 17, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret2).slice(2),
+        bobAddress,
+        aliceAddress,
+        17,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -417,12 +499,20 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 70000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        70000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
           input: bitcoin.script.compile([
-            bitcoin.script.signature.encode(alice.sign(signatureHash), hashType),
+            bitcoin.script.signature.encode(
+              alice.sign(signatureHash),
+              hashType
+            ),
             alice.publicKey,
             Buffer.from([]),
           ]),
@@ -450,9 +540,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 17, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret2).slice(2),
+        bobAddress,
+        aliceAddress,
+        17,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -461,12 +558,20 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 70000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        70000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
           input: bitcoin.script.compile([
-            bitcoin.script.signature.encode(alice.sign(signatureHash), hashType),
+            bitcoin.script.signature.encode(
+              alice.sign(signatureHash),
+              hashType
+            ),
             alice.publicKey,
             Buffer.from([]),
           ]),
@@ -490,9 +595,16 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
     it("Alice should not be able to refund a swap that is already refunded", async () => {
       const aliceAddress = getP2PKHAddress(alice.publicKey, network);
       const bobAddress = getP2PKHAddress(bob.publicKey, network);
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
-      const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 17, network);
+      const { AtomicSwapScript } = BuildAtomicSwapScript(
+        sha256(secret2).slice(2),
+        bobAddress,
+        aliceAddress,
+        17,
+        network
+      );
 
       const tx = new bitcoin.Transaction();
       tx.version = 2;
@@ -501,12 +613,20 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-      const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 70000000, hashType);
+      const signatureHash = tx.hashForWitnessV0(
+        0,
+        AtomicSwapScript,
+        70000000,
+        hashType
+      );
 
       const redeemScriptSig = bitcoin.payments.p2wsh({
         redeem: {
           input: bitcoin.script.compile([
-            bitcoin.script.signature.encode(alice.sign(signatureHash), hashType),
+            bitcoin.script.signature.encode(
+              alice.sign(signatureHash),
+              hashType
+            ),
             alice.publicKey,
             Buffer.from([]),
           ]),
@@ -519,7 +639,9 @@ describe("--- ATOMIC SWAP - BITCOIN ---", () => {
 
       exec("nigiri push " + txHex, (error, stdout, stderr) => {
         if (error) {
-          expect(error.message).to.contain("Transaction already in block chain");
+          expect(error.message).to.contain(
+            "Transaction already in block chain"
+          );
           return;
         }
       });

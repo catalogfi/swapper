@@ -37,7 +37,8 @@ export const BuildAtomicSwapScript = (
     },
     network,
   });
-  if (!p2wsh.address) throw new Error("Unable to generate atomic-swap script p2wsh address");
+  if (!p2wsh.address)
+    throw new Error("Unable to generate atomic-swap script p2wsh address");
   return {
     AtomicSwapScript,
     address: p2wsh.address,
