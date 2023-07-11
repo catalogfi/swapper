@@ -56,6 +56,8 @@ jobs:
           sudo apt update && sudo apt install -y --fix-missing --fix-broken pkg-config build-essential libudev-dev libssl-dev
           avm install latest
           avm use latest
+          export PATH=$PATH:/home/runner/.avm/bin
+          source ~/.profile
 
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
