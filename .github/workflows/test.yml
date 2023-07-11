@@ -37,6 +37,25 @@ jobs:
           curl https://getnigiri.vulpem.com | bash
           nigiri start
 
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Install Solana
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v1.16.3/install)"
+          solana-keygen new --no-passphrase --force
+          solana config set --url http://localhost:8899
+
+      - name: Install Anchor
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
+          avm install latest
+          avm use latest
+
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
         with:
@@ -45,5 +64,14 @@ jobs:
       - name: Install Project Dependencies
         run: yarn install
 
-      - name: Run Tests
-        run: npx hardhat test
+      - name: Run Bitcoin Tests
+        run: npx hardhat test test/AtomicSwapB.ts
+      
+      - name: Run Ethereum Tests
+        run: npx hardhat test test/AtomicSwapE.ts
+
+      - name: Run Solana Tests
+        run: anchor test
+
+      - name: Integration Tests
+        run: npx hardhat test test/AtomicSwap.ts
