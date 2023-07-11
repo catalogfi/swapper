@@ -46,6 +46,7 @@ jobs:
       - name: Install Solana
         run: |
           sh -c "$(curl -sSfL https://release.solana.com/v1.16.3/install)"
+          source ~/.profile
           solana-keygen new --no-passphrase --force
           solana config set --url http://localhost:8899
 
@@ -66,7 +67,7 @@ jobs:
 
       - name: Run Bitcoin Tests
         run: npx hardhat test test/AtomicSwapB.ts
-      
+
       - name: Run Ethereum Tests
         run: npx hardhat test test/AtomicSwapE.ts
 
