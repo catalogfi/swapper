@@ -84,10 +84,6 @@ describe("atomic_swap_spl_test_suite", () => {
       )
     );
     const signature = await provider.sendAndConfirm(tx, [tokenMint]);
-
-    console.log(
-      `[${tokenMint.publicKey}] Created new mint account at ${signature}\n`
-    );
     return tokenMint.publicKey;
   };
 
@@ -129,9 +125,6 @@ describe("atomic_swap_spl_test_suite", () => {
       const txFundTokenSig = await provider.sendAndConfirm(txFundTokenAccount, [
         user,
       ]);
-      console.log(
-        `[${userAssociatedTokenAccount.toBase58()}] New associated account for mint ${mint.toBase58()}: ${txFundTokenSig}\n`
-      );
     }
     return userAssociatedTokenAccount;
   };
@@ -209,8 +202,6 @@ describe("atomic_swap_spl_test_suite", () => {
       atomicSwapWallet: atomicSwapTokenWallet,
       refunderWallet: aliceTokenAccount,
     };
-    console.log(
-      "Initiate ",
       await program.methods
         .initialize(bob.publicKey, secretHashBytes, amount, expiry)
         .accounts({
@@ -222,8 +213,7 @@ describe("atomic_swap_spl_test_suite", () => {
           tokenMint: tokenMint,
         })
         .signers([payer, alice])
-        .rpc()
-    );
+        .rpc();
   });
 
   it("Bob can redeem SPL token with the secret", async () => {
@@ -233,10 +223,7 @@ describe("atomic_swap_spl_test_suite", () => {
     );
     expect(atomicWalletBalanceBefore).to.equal("100000");
 
-    console.log(
-      "Redeem ",
-      await program.methods.redeem(secretBytes).accounts(redeemAccounts).rpc()
-    );
+      await program.methods.redeem(secretBytes).accounts(redeemAccounts).rpc();
     const [, atomicWalletBalanceAfter] = await readAccount(
       atomicSwapTokenWallet,
       provider
@@ -267,10 +254,7 @@ describe("atomic_swap_spl_test_suite", () => {
     const aliceBalanceBefore = (await spl.getAccount(provider.connection, acc))
       .amount;
     await new Promise((f) => setTimeout(f, 2500));
-    console.log(
-      "Refund ",
-      await program.methods.refund().accounts(refundAccounts).rpc()
-    );
+      await program.methods.refund().accounts(refundAccounts).rpc();
 
     const [, atomicWalletBalanceAfter] = await readAccount(
       atomicSwapTokenWallet,
