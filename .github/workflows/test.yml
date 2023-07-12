@@ -70,12 +70,11 @@ jobs:
       - name: Create keypair
         run: solana-keygen new --no-bip39-passphrase
         shell: bash
-      - name: Install Cargo toolchain
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
           profile: minimal
-          components: rustc
+          toolchain: stable
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
       - name: Run tests
