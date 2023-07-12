@@ -57,8 +57,12 @@ jobs:
   build2:
     runs-on: ubuntu-latest
     container: backpackapp/build:v0.28.0
-
+    permissions:
+          actions: read
+          contents: read
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
       - name: Cache node_modules
         uses: actions/cache@v3
         with:
