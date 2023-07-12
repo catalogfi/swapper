@@ -46,6 +46,8 @@ jobs:
       - name: Install Solana
         run: |
           sh -c "$(curl -sSfL https://release.solana.com/v1.16.3/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           source ~/.profile
           solana-keygen new --no-passphrase --force
           solana config set --url http://localhost:8899
@@ -56,8 +58,8 @@ jobs:
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
           sudo apt update && sudo apt install -y --fix-missing --fix-broken pkg-config build-essential libudev-dev libssl-dev
-          avm install latest
-          avm use latest
+          avm install 0.27.0
+          avm use 0.27.0
           export PATH=/home/runner/.avm/bin:$PATH
           source ~/.profile
           which solana
@@ -68,25 +70,21 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Update Cargo binaries
-        run: cargo update
-        
       - name: Install Project Dependencies
         run: yarn install
 
+      - name: Run Solana Tests
+        run: |
+          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+          anchor test
+          which solana
+          solana --version
+  
       - name: Run Bitcoin Tests
         run: npx hardhat test test/AtomicSwapB.ts
 
       - name: Run Ethereum Tests
         run: npx hardhat test test/AtomicSwapE.ts
-
-      - name: Run Solana Tests
-        run: |
-          which solana
-          solana --version
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          rustup show
-          anchor test
 
       - name: Integration Tests
         run: npx hardhat test test/AtomicSwap.ts
