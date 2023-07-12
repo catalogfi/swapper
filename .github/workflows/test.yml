@@ -59,24 +59,25 @@ jobs:
     container: backpackapp/build:v0.28.0
 
     steps:
-      - uses: actions/checkout@v3
-      - name: List rustup toolchains
-        run: rustup toolchain list
-      - name: Set default toolchain
-        run: rustup default stable
-      - name: List rustup toolchains
-        run: rustup toolchain list
-      - name: Generate new keygen
-        run: solana-keygen new
-      - name: Set solana target cluster to local
-        run: solana config set --url http:localhost:8899
-      - name: Check solana config
-        run: solana config get
-      - name: Install yarn dependencies
-        run: yarn install
-      - name: Build
-        run: |
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          anchor build
+      - name: Cache node_modules
+      uses: actions/cache@v3
+      with:
+        path: ./node_modules/
+        key: node-modules-${{ runner.os }}-build-18.16.1
+      - name: Install node_modules
+        run: yarn
+        shell: bash
+      - name: Create keypair
+        run: solana-keygen new --no-bip39-passphrase
+        shell: bash
+      - name: Install Cargo toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustc
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: anchor test
+        shell: bash
