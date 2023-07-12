@@ -74,10 +74,10 @@ jobs:
       - name: Create keypair
         run: solana-keygen new --no-bip39-passphrase
         shell: bash
+      - name: Set rust stable as default
+        run: rustup default stable
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: |
-          rustup default stable
-          anchor test
+        run: anchor test
         shell: bash
