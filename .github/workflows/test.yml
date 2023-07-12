@@ -56,7 +56,7 @@ jobs:
 
   build2:
     runs-on: ubuntu-latest
-    container: projectserum/build:v0.27.0    
+    container: pull backpackapp/build:v0.28.0
 
     steps:
       - uses: actions/checkout@v3
