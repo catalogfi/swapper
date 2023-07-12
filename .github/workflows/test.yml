@@ -49,6 +49,8 @@ jobs:
           source ~/.profile
           solana-keygen new --no-passphrase --force
           solana config set --url http://localhost:8899
+          which solana
+          solana --version
 
       - name: Install Anchor
         run: |
@@ -58,6 +60,8 @@ jobs:
           avm use latest
           export PATH=/home/runner/.avm/bin:$PATH
           source ~/.profile
+          which solana
+          solana --version
 
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
@@ -78,6 +82,7 @@ jobs:
           export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
           rustup show
           which solana
+          solana --version
           cargo update
           anchor test
 
