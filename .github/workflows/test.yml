@@ -79,11 +79,11 @@ jobs:
 
       - name: Run Solana Tests
         run: |
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          rustup show
+          cargo update
           which solana
           solana --version
-          cargo update
+          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+          rustup show
           anchor test
 
       - name: Integration Tests
