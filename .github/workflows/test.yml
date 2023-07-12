@@ -62,13 +62,15 @@ jobs:
           source ~/.profile
           which solana
           solana --version
-          cargo update
 
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
         with:
           node-version: lts/*
 
+      - name: Update Cargo binaries
+        run: cargo update
+        
       - name: Install Project Dependencies
         run: yarn install
 
