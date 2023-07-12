@@ -77,7 +77,7 @@ jobs:
         run: |
           export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
           rustup show
-          solana --version
+          which solana
           cargo update
           anchor test
 
