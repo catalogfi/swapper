@@ -56,7 +56,7 @@ jobs:
 
   build2:
     runs-on: ubuntu-latest
-    container: pull backpackapp/build:v0.28.0
+    container: backpackapp/build:v0.28.0
 
     steps:
       - uses: actions/checkout@v3
