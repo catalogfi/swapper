@@ -83,7 +83,12 @@ describe("--- ATOMIC SWAP ---", () => {
     return requiredUTXOs;
   };
 
-  const sendBTC = async (from: ECPairInterface, to: string, amount: number, index: number) => {
+  const sendBTC = async (
+    from: ECPairInterface,
+    to: string,
+    amount: number,
+    index: number
+  ) => {
     const fromAddress = getP2PKHAddress(from.publicKey, network);
     if (!fromAddress) throw new Error("Unable to generate from address");
 
@@ -92,7 +97,9 @@ describe("--- ATOMIC SWAP ---", () => {
     let acc = 0;
     const psbt = new bitcoin.Psbt({ network });
     for (const utxo of utxos) {
-      const { data: txHex } = await axios.get(`${indexerURL}/tx/${utxo.txId}/hex`);
+      const { data: txHex } = await axios.get(
+        `${indexerURL}/tx/${utxo.txId}/hex`
+      );
 
       psbt.addInput({
         hash: utxo.txId,
@@ -131,7 +138,13 @@ describe("--- ATOMIC SWAP ---", () => {
     bobB = ECPair.makeRandom({ network });
 
     const TestToken = await ethers.getContractFactory("TestToken");
-    usdc = (await TestToken.deploy("USDC", "USDC", 6n, ethers.utils.parseUnits("100000000", 6n), ownerE.address)) as TestToken;
+    usdc = (await TestToken.deploy(
+      "USDC",
+      "USDC",
+      6n,
+      ethers.utils.parseUnits("100000000", 6n),
+      ownerE.address
+    )) as TestToken;
     await usdc.deployed();
 
     const AtomicSwap = await ethers.getContractFactory("AtomicSwap");
@@ -157,7 +170,9 @@ describe("--- ATOMIC SWAP ---", () => {
     });
 
     it("Owner should have 100M USDC", async () => {
-      expect(await usdc.balanceOf(ownerE.address)).to.equal(ethers.utils.parseUnits("100000000", 6n));
+      expect(await usdc.balanceOf(ownerE.address)).to.equal(
+        ethers.utils.parseUnits("100000000", 6n)
+      );
     });
 
     it("All users' accounts should have 0 USDC", async () => {
@@ -189,7 +204,8 @@ describe("--- ATOMIC SWAP ---", () => {
       const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
       const bobAddress = getP2PKHAddress(bobB.publicKey, network);
 
-      if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+      if (!aliceAddress || !bobAddress)
+        throw new Error("Unable to generate addresses");
 
       let aliceBalance = await getBalance(aliceAddress);
       let bobBalance = await getBalance(bobAddress);
@@ -227,7 +243,13 @@ describe("--- ATOMIC SWAP ---", () => {
 
         let flag: boolean;
         try {
-          BuildAtomicSwapScript(sha256(secret1).slice(2), "", aliceAddress, 10, network);
+          BuildAtomicSwapScript(
+            sha256(secret1).slice(2),
+            "",
+            aliceAddress,
+            10,
+            network
+          );
           flag = false;
         } catch (e: any) {
           flag = true;
@@ -239,7 +261,8 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should be able to initiate a swap", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
         const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
           sha256(secret1).slice(2),
@@ -252,7 +275,9 @@ describe("--- ATOMIC SWAP ---", () => {
         await sendBTC(aliceB, atomicSwapScriptAddress, 100000000, 0);
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+        const { data } = await axios.get(
+          `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+        );
 
         expect(data.length).to.be.equal(1);
 
@@ -278,7 +303,12 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.constants.Zero, randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.constants.Zero,
+              randomBytes(32)
+            )
         ).to.be.revertedWith("AtomicSwap: amount cannot be zero");
       });
 
@@ -286,40 +316,76 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: redeemer and initiator cannot be the same");
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: redeemer and initiator cannot be the same"
+        );
       });
 
       it("Bob should not be able to initiate a swap with a past block number", async () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) - 1, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: expiry cannot be lower than current block");
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) - 1,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: expiry cannot be lower than current block"
+        );
       });
 
       it("Bob should not be able to initiate a swap with amount greater than his allowance", async () => {
-        await usdc.connect(bobE).approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(bobE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
 
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("Bob should not be able to initiate a swap with amount greater than her balance", async () => {
-        await usdc.connect(ownerE).transfer(bobE.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.balanceOf(bobE.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(ownerE)
+          .transfer(bobE.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(bobE.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
 
-        await usdc.connect(bobE).approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
-        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("1000", 6n));
+        await usdc
+          .connect(bobE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
+        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(
+          ethers.utils.parseUnits("1000", 6n)
+        );
 
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
@@ -335,7 +401,10 @@ describe("--- ATOMIC SWAP ---", () => {
             )
         )
           .to.emit(atomicSwap, "Initiated")
-          .withArgs(ethers.utils.sha256(secret1), ethers.utils.parseUnits("100", 6n));
+          .withArgs(
+            ethers.utils.sha256(secret1),
+            ethers.utils.parseUnits("100", 6n)
+          );
       });
 
       it("Bob should not be able to initiate a swap with the same secret", async () => {
@@ -353,13 +422,17 @@ describe("--- ATOMIC SWAP ---", () => {
 
       // Alice redeems the swap on Ethereum
       it("Alice should not be able to redeem a swap with no initiator", async () => {
-        await expect(atomicSwap.connect(aliceE).redeem(randomBytes(32))).to.be.revertedWith(
+        await expect(
+          atomicSwap.connect(aliceE).redeem(randomBytes(32))
+        ).to.be.revertedWith(
           "AtomicSwap: order not initated or invalid secret"
         );
       });
 
       it("Alice should not be able to redeem a swap with invalid secret", async () => {
-        await expect(atomicSwap.connect(aliceE).redeem(randomBytes(32))).to.be.revertedWith(
+        await expect(
+          atomicSwap.connect(aliceE).redeem(randomBytes(32))
+        ).to.be.revertedWith(
           "AtomicSwap: order not initated or invalid secret"
         );
       });
@@ -367,22 +440,36 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should be able to redeem a swap with valid secret", async () => {
         await expect(atomicSwap.connect(aliceE).redeem(secret1))
           .to.emit(atomicSwap, "Redeemed")
-          .withArgs(ethers.utils.sha256(secret1), ethers.utils.hexlify(secret1));
+          .withArgs(
+            ethers.utils.sha256(secret1),
+            ethers.utils.hexlify(secret1)
+          );
 
-        expect(await usdc.balanceOf(aliceE.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(aliceE.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
       });
 
       it("Alice should not be able to redeem a swap with the same secret", async () => {
-        await expect(atomicSwap.connect(aliceE).redeem(secret1)).to.be.revertedWith("AtomicSwap: order already fulfilled");
+        await expect(
+          atomicSwap.connect(aliceE).redeem(secret1)
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
 
       // Bob redeems the swap on Bitcoin
       it("Bob should not be able to redeem a swap with invalid secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -391,12 +478,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               randomBytes(32),
               bitcoin.opcodes.OP_TRUE,
@@ -409,7 +504,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Script failed an OP_EQUALVERIFY operation");
+            expect(error.message).to.contain(
+              "Script failed an OP_EQUALVERIFY operation"
+            );
             return;
           }
         });
@@ -419,9 +516,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should be able to redeem a swap with valid secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -430,12 +534,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               secret1,
               bitcoin.opcodes.OP_TRUE,
@@ -460,9 +572,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should not be able to redeem a swap with the same secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -471,12 +590,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               secret1,
               bitcoin.opcodes.OP_TRUE,
@@ -490,7 +617,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Transaction already in block chain");
+            expect(error.message).to.contain(
+              "Transaction already in block chain"
+            );
             return;
           }
         });
@@ -506,7 +635,13 @@ describe("--- ATOMIC SWAP ---", () => {
 
         let flag: boolean;
         try {
-          BuildAtomicSwapScript(sha256(secret2).slice(2), "", aliceAddress, 10, network);
+          BuildAtomicSwapScript(
+            sha256(secret2).slice(2),
+            "",
+            aliceAddress,
+            10,
+            network
+          );
           flag = false;
         } catch (e: any) {
           flag = true;
@@ -518,7 +653,8 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should be able to initiate a swap", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
         const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
           sha256(secret2).slice(2),
@@ -531,7 +667,9 @@ describe("--- ATOMIC SWAP ---", () => {
         await sendBTC(aliceB, atomicSwapScriptAddress, 100000000, 1);
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+        const { data } = await axios.get(
+          `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+        );
 
         expect(data.length).to.be.equal(1);
 
@@ -557,7 +695,12 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.constants.Zero, randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.constants.Zero,
+              randomBytes(32)
+            )
         ).to.be.revertedWith("AtomicSwap: amount cannot be zero");
       });
 
@@ -565,40 +708,76 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: redeemer and initiator cannot be the same");
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: redeemer and initiator cannot be the same"
+        );
       });
 
       it("Bob should not be able to initiate a swap with a past block number", async () => {
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) - 1, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: expiry cannot be lower than current block");
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) - 1,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: expiry cannot be lower than current block"
+        );
       });
 
       it("Bob should not be able to initiate a swap with amount greater than his allowance", async () => {
-        await usdc.connect(bobE).approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(bobE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
 
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("Bob should not be able to initiate a swap with amount greater than her balance", async () => {
-        await usdc.connect(ownerE).transfer(bobE.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.balanceOf(bobE.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(ownerE)
+          .transfer(bobE.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(bobE.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
 
-        await usdc.connect(bobE).approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
-        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("1000", 6n));
+        await usdc
+          .connect(bobE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
+        expect(await usdc.allowance(bobE.address, atomicSwap.address)).to.equal(
+          ethers.utils.parseUnits("1000", 6n)
+        );
 
         await expect(
           atomicSwap
             .connect(bobE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
@@ -614,7 +793,10 @@ describe("--- ATOMIC SWAP ---", () => {
             )
         )
           .to.emit(atomicSwap, "Initiated")
-          .withArgs(ethers.utils.sha256(secret2), ethers.utils.parseUnits("100", 6n));
+          .withArgs(
+            ethers.utils.sha256(secret2),
+            ethers.utils.parseUnits("100", 6n)
+          );
       });
 
       it("Bob should not be able to initiate a swap with the same secret", async () => {
@@ -632,35 +814,41 @@ describe("--- ATOMIC SWAP ---", () => {
 
       // Bob refunds the swap on Ethereum
       it("Bob should not be able to refund a swap with no initiator", async () => {
-        await expect(atomicSwap.connect(bobE).refund(randomBytes(32))).to.be.revertedWith("AtomicSwap: order not initated");
+        await expect(
+          atomicSwap.connect(bobE).refund(randomBytes(32))
+        ).to.be.revertedWith("AtomicSwap: order not initated");
       });
 
       it("Bob should not be able to refund a swap that is already redeemed", async () => {
-        await expect(atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret1))).to.be.revertedWith(
-          "AtomicSwap: order already fulfilled"
-        );
+        await expect(
+          atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret1))
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
 
       it("Bob should not be able to refund a swap earlier than the locktime", async () => {
-        await expect(atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2))).to.be.revertedWith(
-          "AtomicSwap: order not expired"
-        );
+        await expect(
+          atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2))
+        ).to.be.revertedWith("AtomicSwap: order not expired");
       });
 
       it("Bob should be able to refund a swap after the locktime", async () => {
         mine((await ethers.provider.getBlockNumber()) + 1000);
 
-        await expect(atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2)))
+        await expect(
+          atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2))
+        )
           .to.emit(atomicSwap, "Refunded")
           .withArgs(ethers.utils.sha256(secret2));
 
-        expect(await usdc.balanceOf(bobE.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(bobE.address)).to.equal(
+          ethers.utils.parseUnits("100", 6n)
+        );
       });
 
       it("Bob should not be able to refund a swap that is already refunded", async () => {
-        await expect(atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2))).to.be.revertedWith(
-          "AtomicSwap: order already fulfilled"
-        );
+        await expect(
+          atomicSwap.connect(bobE).refund(ethers.utils.sha256(secret2))
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
 
       // Alice refunds the swap on Bitcoin
@@ -673,9 +861,16 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret1).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -684,12 +879,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               Buffer.from([]),
             ]),
@@ -712,9 +915,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should not be able to refund a swap earlier than the locktime", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret2).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -723,12 +933,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               Buffer.from([]),
             ]),
@@ -756,9 +974,16 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret2).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -767,12 +992,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               Buffer.from([]),
             ]),
@@ -796,9 +1029,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should not be able to refund a swap that is already refunded", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret2).slice(2), bobAddress, aliceAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret2).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -807,12 +1047,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               Buffer.from([]),
             ]),
@@ -825,7 +1073,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Transaction already in block chain");
+            expect(error.message).to.contain(
+              "Transaction already in block chain"
+            );
             return;
           }
         });
@@ -854,7 +1104,12 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.constants.Zero, randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.constants.Zero,
+              randomBytes(32)
+            )
         ).to.be.revertedWith("AtomicSwap: amount cannot be zero");
       });
 
@@ -862,40 +1117,76 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: redeemer and initiator cannot be the same");
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: redeemer and initiator cannot be the same"
+        );
       });
 
       it("Alice should not be able to initiate a swap with a past block number", async () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) - 1, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: expiry cannot be lower than current block");
+            .initiate(
+              bobE.address,
+              (await latestBlock()) - 1,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: expiry cannot be lower than current block"
+        );
       });
 
       it("Alice should not be able to initiate a swap with amount greater than her allowance", async () => {
-        await usdc.connect(aliceE).approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.allowance(aliceE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(aliceE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
+        expect(
+          await usdc.allowance(aliceE.address, atomicSwap.address)
+        ).to.equal(ethers.utils.parseUnits("100", 6n));
 
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("Alice should not be able to initiate a swap with amount greater than her balance", async () => {
-        await usdc.connect(ownerE).transfer(aliceE.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.balanceOf(aliceE.address)).to.equal(ethers.utils.parseUnits("200", 6n));
+        await usdc
+          .connect(ownerE)
+          .transfer(aliceE.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(aliceE.address)).to.equal(
+          ethers.utils.parseUnits("200", 6n)
+        );
 
-        await usdc.connect(aliceE).approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
-        expect(await usdc.allowance(aliceE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("1000", 6n));
+        await usdc
+          .connect(aliceE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
+        expect(
+          await usdc.allowance(aliceE.address, atomicSwap.address)
+        ).to.equal(ethers.utils.parseUnits("1000", 6n));
 
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("400", 6n), randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("400", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
@@ -911,7 +1202,10 @@ describe("--- ATOMIC SWAP ---", () => {
             )
         )
           .to.emit(atomicSwap, "Initiated")
-          .withArgs(ethers.utils.sha256(secret3), ethers.utils.parseUnits("100", 6n));
+          .withArgs(
+            ethers.utils.sha256(secret3),
+            ethers.utils.parseUnits("100", 6n)
+          );
       });
 
       it("Alice should not be able to initiate a swap with the same secret", async () => {
@@ -934,7 +1228,13 @@ describe("--- ATOMIC SWAP ---", () => {
 
         let flag: boolean;
         try {
-          BuildAtomicSwapScript(sha256(secret3).slice(2), "", bobAddress, 10, network);
+          BuildAtomicSwapScript(
+            sha256(secret3).slice(2),
+            "",
+            bobAddress,
+            10,
+            network
+          );
           flag = false;
         } catch (e: any) {
           flag = true;
@@ -946,7 +1246,8 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should be able to initiate a swap", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
         const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
           sha256(secret3).slice(2),
@@ -959,7 +1260,9 @@ describe("--- ATOMIC SWAP ---", () => {
         await sendBTC(bobB, atomicSwapScriptAddress, 100000000, 2);
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+        const { data } = await axios.get(
+          `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+        );
 
         expect(data.length).to.be.equal(1);
 
@@ -971,9 +1274,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should not be able to redeem a swap with invalid secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret3).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret3).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -982,12 +1292,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               randomBytes(32),
               bitcoin.opcodes.OP_TRUE,
@@ -1000,7 +1318,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Script failed an OP_EQUALVERIFY operation");
+            expect(error.message).to.contain(
+              "Script failed an OP_EQUALVERIFY operation"
+            );
             return;
           }
         });
@@ -1010,9 +1330,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should be able to redeem a swap with valid secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret3).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret3).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1021,12 +1348,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               secret3,
               bitcoin.opcodes.OP_TRUE,
@@ -1051,9 +1386,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should not be able to redeem a swap with the same secret", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret3).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret3).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1062,12 +1404,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(aliceB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                aliceB.sign(signatureHash),
+                hashType
+              ),
               aliceB.publicKey,
               secret3,
               bitcoin.opcodes.OP_TRUE,
@@ -1081,7 +1431,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Transaction already in block chain");
+            expect(error.message).to.contain(
+              "Transaction already in block chain"
+            );
             return;
           }
         });
@@ -1090,13 +1442,17 @@ describe("--- ATOMIC SWAP ---", () => {
 
       // Bob redeems the swap on Ethereum
       it("Bob should not be able to redeem a swap with no initiator", async () => {
-        await expect(atomicSwap.connect(bobE).redeem(randomBytes(32))).to.be.revertedWith(
+        await expect(
+          atomicSwap.connect(bobE).redeem(randomBytes(32))
+        ).to.be.revertedWith(
           "AtomicSwap: order not initated or invalid secret"
         );
       });
 
       it("Bob should not be able to redeem a swap with invalid secret", async () => {
-        await expect(atomicSwap.connect(bobE).redeem(randomBytes(32))).to.be.revertedWith(
+        await expect(
+          atomicSwap.connect(bobE).redeem(randomBytes(32))
+        ).to.be.revertedWith(
           "AtomicSwap: order not initated or invalid secret"
         );
       });
@@ -1104,13 +1460,20 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should be able to redeem a swap with valid secret", async () => {
         await expect(atomicSwap.connect(bobE).redeem(secret3))
           .to.emit(atomicSwap, "Redeemed")
-          .withArgs(ethers.utils.sha256(secret3), ethers.utils.hexlify(secret3));
+          .withArgs(
+            ethers.utils.sha256(secret3),
+            ethers.utils.hexlify(secret3)
+          );
 
-        expect(await usdc.balanceOf(bobE.address)).to.equal(ethers.utils.parseUnits("200", 6n));
+        expect(await usdc.balanceOf(bobE.address)).to.equal(
+          ethers.utils.parseUnits("200", 6n)
+        );
       });
 
       it("Bob should not be able to redeem a swap with the same secret", async () => {
-        await expect(atomicSwap.connect(bobE).redeem(secret3)).to.be.revertedWith("AtomicSwap: order already fulfilled");
+        await expect(
+          atomicSwap.connect(bobE).redeem(secret3)
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
     });
 
@@ -1133,7 +1496,12 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.constants.Zero, randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.constants.Zero,
+              randomBytes(32)
+            )
         ).to.be.revertedWith("AtomicSwap: amount cannot be zero");
       });
 
@@ -1141,40 +1509,76 @@ describe("--- ATOMIC SWAP ---", () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(aliceE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: redeemer and initiator cannot be the same");
+            .initiate(
+              aliceE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: redeemer and initiator cannot be the same"
+        );
       });
 
       it("Alice should not be able to initiate a swap with a past block number", async () => {
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) - 1, ethers.utils.parseUnits("100", 6n), randomBytes(32))
-        ).to.be.revertedWith("AtomicSwap: expiry cannot be lower than current block");
+            .initiate(
+              bobE.address,
+              (await latestBlock()) - 1,
+              ethers.utils.parseUnits("100", 6n),
+              randomBytes(32)
+            )
+        ).to.be.revertedWith(
+          "AtomicSwap: expiry cannot be lower than current block"
+        );
       });
 
       it("Alice should not be able to initiate a swap with amount greater than her allowance", async () => {
-        await usdc.connect(aliceE).approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.allowance(aliceE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("100", 6n));
+        await usdc
+          .connect(aliceE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("100", 6n));
+        expect(
+          await usdc.allowance(aliceE.address, atomicSwap.address)
+        ).to.equal(ethers.utils.parseUnits("100", 6n));
 
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("200", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("Alice should not be able to initiate a swap with amount greater than her balance", async () => {
-        await usdc.connect(ownerE).transfer(aliceE.address, ethers.utils.parseUnits("100", 6n));
-        expect(await usdc.balanceOf(aliceE.address)).to.equal(ethers.utils.parseUnits("200", 6n));
+        await usdc
+          .connect(ownerE)
+          .transfer(aliceE.address, ethers.utils.parseUnits("100", 6n));
+        expect(await usdc.balanceOf(aliceE.address)).to.equal(
+          ethers.utils.parseUnits("200", 6n)
+        );
 
-        await usdc.connect(aliceE).approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
-        expect(await usdc.allowance(aliceE.address, atomicSwap.address)).to.equal(ethers.utils.parseUnits("1000", 6n));
+        await usdc
+          .connect(aliceE)
+          .approve(atomicSwap.address, ethers.utils.parseUnits("1000", 6n));
+        expect(
+          await usdc.allowance(aliceE.address, atomicSwap.address)
+        ).to.equal(ethers.utils.parseUnits("1000", 6n));
 
         await expect(
           atomicSwap
             .connect(aliceE)
-            .initiate(bobE.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("400", 6n), randomBytes(32))
+            .initiate(
+              bobE.address,
+              (await latestBlock()) + 1000,
+              ethers.utils.parseUnits("400", 6n),
+              randomBytes(32)
+            )
         ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
@@ -1190,7 +1594,10 @@ describe("--- ATOMIC SWAP ---", () => {
             )
         )
           .to.emit(atomicSwap, "Initiated")
-          .withArgs(ethers.utils.sha256(secret4), ethers.utils.parseUnits("100", 6n));
+          .withArgs(
+            ethers.utils.sha256(secret4),
+            ethers.utils.parseUnits("100", 6n)
+          );
       });
 
       it("Alice should not be able to initiate a swap with the same secret", async () => {
@@ -1213,7 +1620,13 @@ describe("--- ATOMIC SWAP ---", () => {
 
         let flag: boolean;
         try {
-          BuildAtomicSwapScript(sha256(secret4).slice(2), "", bobAddress, 10, network);
+          BuildAtomicSwapScript(
+            sha256(secret4).slice(2),
+            "",
+            bobAddress,
+            10,
+            network
+          );
           flag = false;
         } catch (e: any) {
           flag = true;
@@ -1225,7 +1638,8 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should be able to initiate a swap", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
         const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
           sha256(secret4).slice(2),
@@ -1238,7 +1652,9 @@ describe("--- ATOMIC SWAP ---", () => {
         await sendBTC(bobB, atomicSwapScriptAddress, 100000000, 3);
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        const { data } = await axios.get(`${indexerURL}/address/${atomicSwapScriptAddress}/utxo`);
+        const { data } = await axios.get(
+          `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+        );
 
         expect(data.length).to.be.equal(1);
 
@@ -1256,9 +1672,16 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret3).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret3).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1267,12 +1690,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               Buffer.from([]),
             ]),
@@ -1295,9 +1726,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Bob should not be able to refund a swap earlier than the locktime", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret4).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret4).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1306,12 +1744,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               Buffer.from([]),
             ]),
@@ -1339,9 +1785,16 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret4).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret4).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1350,12 +1803,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               Buffer.from([]),
             ]),
@@ -1379,9 +1840,16 @@ describe("--- ATOMIC SWAP ---", () => {
       it("Alice should not be able to refund a swap that is already refunded", async () => {
         const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
         const bobAddress = getP2PKHAddress(bobB.publicKey, network);
-        if (!aliceAddress || !bobAddress) throw new Error("Unable to generate addresses");
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
 
-        const { AtomicSwapScript } = BuildAtomicSwapScript(sha256(secret4).slice(2), aliceAddress, bobAddress, 10, network);
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret4).slice(2),
+          aliceAddress,
+          bobAddress,
+          10,
+          network
+        );
 
         const tx = new bitcoin.Transaction();
         tx.version = 2;
@@ -1390,12 +1858,20 @@ describe("--- ATOMIC SWAP ---", () => {
 
         const hashType = bitcoin.Transaction.SIGHASH_ALL;
 
-        const signatureHash = tx.hashForWitnessV0(0, AtomicSwapScript, 100000000, hashType);
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
 
         const redeemScriptSig = bitcoin.payments.p2wsh({
           redeem: {
             input: bitcoin.script.compile([
-              bitcoin.script.signature.encode(bobB.sign(signatureHash), hashType),
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
               bobB.publicKey,
               Buffer.from([]),
             ]),
@@ -1408,7 +1884,9 @@ describe("--- ATOMIC SWAP ---", () => {
 
         exec("nigiri push " + txHex, (error, stdout, stderr) => {
           if (error) {
-            expect(error.message).to.contain("Transaction already in block chain");
+            expect(error.message).to.contain(
+              "Transaction already in block chain"
+            );
             return;
           }
         });
@@ -1417,35 +1895,41 @@ describe("--- ATOMIC SWAP ---", () => {
 
       // Alice refunds the swap on Ethereum
       it("Alice should not be able to refund a swap with no initiator", async () => {
-        await expect(atomicSwap.connect(aliceE).refund(randomBytes(32))).to.be.revertedWith("AtomicSwap: order not initated");
+        await expect(
+          atomicSwap.connect(aliceE).refund(randomBytes(32))
+        ).to.be.revertedWith("AtomicSwap: order not initated");
       });
 
       it("Alice should not be able to refund a swap that is already redeemed", async () => {
-        await expect(atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret3))).to.be.revertedWith(
-          "AtomicSwap: order already fulfilled"
-        );
+        await expect(
+          atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret3))
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
 
       it("Alice should not be able to refund a swap earlier than the locktime", async () => {
-        await expect(atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4))).to.be.revertedWith(
-          "AtomicSwap: order not expired"
-        );
+        await expect(
+          atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4))
+        ).to.be.revertedWith("AtomicSwap: order not expired");
       });
 
       it("Alice should be able to refund a swap after the locktime", async () => {
         mine((await ethers.provider.getBlockNumber()) + 1000);
 
-        await expect(atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4)))
+        await expect(
+          atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4))
+        )
           .to.emit(atomicSwap, "Refunded")
           .withArgs(ethers.utils.sha256(secret4));
 
-        expect(await usdc.balanceOf(aliceE.address)).to.equal(ethers.utils.parseUnits("200", 6n));
+        expect(await usdc.balanceOf(aliceE.address)).to.equal(
+          ethers.utils.parseUnits("200", 6n)
+        );
       });
 
       it("Alice should not be able to refund a swap that is already refunded", async () => {
-        await expect(atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4))).to.be.revertedWith(
-          "AtomicSwap: order already fulfilled"
-        );
+        await expect(
+          atomicSwap.connect(aliceE).refund(ethers.utils.sha256(secret4))
+        ).to.be.revertedWith("AtomicSwap: order already fulfilled");
       });
     });
   });

@@ -202,18 +202,18 @@ describe("atomic_swap_spl_test_suite", () => {
       atomicSwapWallet: atomicSwapTokenWallet,
       refunderWallet: aliceTokenAccount,
     };
-      await program.methods
-        .initialize(bob.publicKey, secretHashBytes, amount, expiry)
-        .accounts({
-          atomicSwap: atomicSwapPK,
-          atomicSwapWallet: atomicSwapTokenWallet,
-          feePayer: payer.publicKey,
-          signerWallet: aliceTokenAccount,
-          signer: alice.publicKey,
-          tokenMint: tokenMint,
-        })
-        .signers([payer, alice])
-        .rpc();
+    await program.methods
+      .initialize(bob.publicKey, secretHashBytes, amount, expiry)
+      .accounts({
+        atomicSwap: atomicSwapPK,
+        atomicSwapWallet: atomicSwapTokenWallet,
+        feePayer: payer.publicKey,
+        signerWallet: aliceTokenAccount,
+        signer: alice.publicKey,
+        tokenMint: tokenMint,
+      })
+      .signers([payer, alice])
+      .rpc();
   });
 
   it("Bob can redeem SPL token with the secret", async () => {
@@ -223,7 +223,7 @@ describe("atomic_swap_spl_test_suite", () => {
     );
     expect(atomicWalletBalanceBefore).to.equal("100000");
 
-      await program.methods.redeem(secretBytes).accounts(redeemAccounts).rpc();
+    await program.methods.redeem(secretBytes).accounts(redeemAccounts).rpc();
     const [, atomicWalletBalanceAfter] = await readAccount(
       atomicSwapTokenWallet,
       provider
@@ -254,7 +254,7 @@ describe("atomic_swap_spl_test_suite", () => {
     const aliceBalanceBefore = (await spl.getAccount(provider.connection, acc))
       .amount;
     await new Promise((f) => setTimeout(f, 2500));
-      await program.methods.refund().accounts(refundAccounts).rpc();
+    await program.methods.refund().accounts(refundAccounts).rpc();
 
     const [, atomicWalletBalanceAfter] = await readAccount(
       atomicSwapTokenWallet,

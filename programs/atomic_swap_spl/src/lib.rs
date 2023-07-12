@@ -1,12 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-// use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
 use solana_program::clock::Clock;
 use solana_program::hash::hash;
 
-// This is your program's public key and it will update
-// automatically when you build the project.
 declare_id!("4NJ18xSDkkU9Pt8rAB9zwfYzgP7nmW4Wat9ZfuVT8mrU");
 
 #[program]
@@ -16,7 +13,6 @@ mod atomic_swap_spl {
     pub fn initialize(
         ctx: Context<Initialize>,
         redeemer: Pubkey,
-        // refunder: Pubkey,
         secret_hash: [u8; 32],
         amount: u64,
         expiry: i64,
@@ -182,5 +178,4 @@ pub enum AtomicSwapError {
     InvalidRefunder,
     SecretMismatch,
     HasNotExpired,
-//    HasNotFinalized
 }
