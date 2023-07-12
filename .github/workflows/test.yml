@@ -56,7 +56,7 @@ jobs:
           sudo apt update && sudo apt install -y --fix-missing --fix-broken pkg-config build-essential libudev-dev libssl-dev
           avm install latest
           avm use latest
-          export PATH=$PATH:/home/runner/.avm/bin
+          export PATH=/home/runner/.avm/bin:$PATH
           source ~/.profile
 
       - name: Install Node.js LTS
@@ -74,7 +74,11 @@ jobs:
         run: npx hardhat test test/AtomicSwapE.ts
 
       - name: Run Solana Tests
-        run: anchor test
+        run: |
+          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+          rustup show
+          which cargo
+          anchor test
 
       - name: Integration Tests
         run: npx hardhat test test/AtomicSwap.ts
