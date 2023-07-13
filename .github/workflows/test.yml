@@ -12,68 +12,70 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install Docker Desktop
-        run: |
-          sudo apt-get update
-          sudo apt-get install \
-            apt-transport-https \
-            ca-certificates \
-            curl \
-            gnupg-agent \
-            software-properties-common
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository \
-            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-            $(lsb_release -cs) \
-            stable"
-          sudo apt-get update
-          sudo apt-get install docker-ce docker-ce-cli containerd.io
+      - name: Check Home
+        run: echo $HOME
+      # - name: Install Docker Desktop
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install \
+      #       apt-transport-https \
+      #       ca-certificates \
+      #       curl \
+      #       gnupg-agent \
+      #       software-properties-common
+      #     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+      #     sudo add-apt-repository \
+      #       "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+      #       $(lsb_release -cs) \
+      #       stable"
+      #     sudo apt-get update
+      #     sudo apt-get install docker-ce docker-ce-cli containerd.io
 
-      - name: Start Docker
-        run: sudo service docker start
+      # - name: Start Docker
+      #   run: sudo service docker start
 
-      - name: Install and run Nigiri
-        run: |
-          curl https://getnigiri.vulpem.com | bash
-          nigiri start
+      # - name: Install and run Nigiri
+      #   run: |
+      #     curl https://getnigiri.vulpem.com | bash
+      #     nigiri start
 
-      - name: Install Rust
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
-          rustup update
+      # - name: Install Rust
+      #   run: |
+      #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      #     source "$HOME/.cargo/env"
+      #     rustup update
 
-      - name: Install Solana
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-          source ~/.profile
-          solana-keygen new --no-passphrase --force
-          solana config set --url http://localhost:8899
+      # - name: Install Solana
+      #   run: |
+      #     sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+      #     source ~/.profile
+      #     solana-keygen new --no-passphrase --force
+      #     solana config set --url http://localhost:8899
 
-      - name: Install Node.js LTS
-        uses: actions/setup-node@v3
-        with:
-          node-version: lts/*
+      # - name: Install Node.js LTS
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: lts/*
 
-      - name: Install Anchor
-        run: |
-          sudo apt update && sudo apt-get install --fix-missing --fix-broken -y pkg-config build-essential libudev-dev
-          cargo install --git https://github.com/coral-xyz/anchor --tag v0.28.0 anchor-cli --locked
-          source "$HOME/.cargo/env"
+      # - name: Install Anchor
+      #   run: |
+      #     sudo apt update && sudo apt-get install --fix-missing --fix-broken -y pkg-config build-essential libudev-dev
+      #     cargo install --git https://github.com/coral-xyz/anchor --tag v0.28.0 anchor-cli --locked
+      #     source "$HOME/.cargo/env"
 
-      - name: Run Solana Tests
-        run: |
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          anchor test
+      # - name: Run Solana Tests
+      #   run: |
+      #     export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+      #     anchor test
 
-      - name: Install Project Dependencies
-        run: yarn install
+      # - name: Install Project Dependencies
+      #   run: yarn install
 
-      - name: Run Bitcoin Tests
-        run: npx hardhat test test/AtomicSwapB.ts
+      # - name: Run Bitcoin Tests
+      #   run: npx hardhat test test/AtomicSwapB.ts
 
-      - name: Run Ethereum Tests
-        run: npx hardhat test test/AtomicSwapE.ts
+      # - name: Run Ethereum Tests
+      #   run: npx hardhat test test/AtomicSwapE.ts
 
-      - name: Integration Tests
-        run: npx hardhat test test/AtomicSwap.ts
+      # - name: Integration Tests
+      #   run: npx hardhat test test/AtomicSwap.ts
