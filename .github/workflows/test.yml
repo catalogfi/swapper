@@ -38,33 +38,33 @@ jobs:
           nigiri start
 
       - name: Install Rust
-        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup update
 
       - name: Install Solana
         run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v1.16.3/install)"
+          sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
           source ~/.profile
           solana-keygen new --no-passphrase --force
           solana config set --url http://localhost:8899
-
-      - name: Install Anchor
-        run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-          sudo apt update && sudo apt install -y --fix-missing --fix-broken pkg-config build-essential libudev-dev libssl-dev
-          avm install latest
-          avm use latest
-          export PATH=/home/runner/.avm/bin:$PATH
-          source ~/.profile
-
-      - name: Run Solana Tests
-        run: |
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          anchor test
 
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
         with:
           node-version: lts/*
+
+      - name: Install Anchor
+        run: |
+          sudo apt update && sudo apt-get install --fix-missing --fix-broken -y pkg-config build-essential libudev-dev
+          cargo install --git https://github.com/coral-xyz/anchor --tag v0.28.0 anchor-cli --locked
+          source "$HOME/.cargo/env"
+
+      - name: Run Solana Tests
+        run: |
+          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+          anchor test
 
       - name: Install Project Dependencies
         run: yarn install
