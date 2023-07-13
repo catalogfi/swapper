@@ -58,8 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     container: backpackapp/build:v0.28.0
     permissions:
-          actions: read
-          contents: read
+      actions: read
+      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3

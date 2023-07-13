@@ -21,13 +21,13 @@ describe("atomic_swap_spl_test_suite", () => {
   let amount = new anchor.BN(100000);
 
   let expiry: anchor.BN;
+  const expiryDelta: number = 2;
   let secretBytes: Array<number>;
   let secretHashBytes: Array<number>;
   let tokenMint: anchor.web3.PublicKey;
   let atomicSwapPK: anchor.web3.PublicKey;
   let aliceTokenAccount: anchor.web3.PublicKey;
   let bobTokenAccount: anchor.web3.PublicKey;
-  let hackerTokenAccount: anchor.web3.PublicKey;
   let payerTokenAccount: anchor.web3.PublicKey;
 
   type RefundAccounts = {
@@ -83,7 +83,7 @@ describe("atomic_swap_spl_test_suite", () => {
         provider.wallet.publicKey
       )
     );
-    const signature = await provider.sendAndConfirm(tx, [tokenMint]);
+    await provider.sendAndConfirm(tx, [tokenMint]);
     return tokenMint.publicKey;
   };
 
@@ -122,9 +122,7 @@ describe("atomic_swap_spl_test_suite", () => {
           []
         )
       );
-      const txFundTokenSig = await provider.sendAndConfirm(txFundTokenAccount, [
-        user,
-      ]);
+      await provider.sendAndConfirm(txFundTokenAccount, [user]);
     }
     return userAssociatedTokenAccount;
   };
@@ -159,7 +157,7 @@ describe("atomic_swap_spl_test_suite", () => {
     const secret = ethers.utils.randomBytes(32);
     secretBytes = [];
     secretBytes.push(...secret);
-    expiry = new anchor.BN(Math.floor(Date.now() / 1000));
+    expiry = new anchor.BN(Math.floor(Date.now() / 1000) + expiryDelta);
 
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(alice.publicKey, 10000000000000)
@@ -185,9 +183,6 @@ describe("atomic_swap_spl_test_suite", () => {
     bobTokenAccount =
       (await getFundedAssociatedTokenAccount(bob, tokenMint)) ??
       new anchor.web3.PublicKey("");
-    hackerTokenAccount =
-      (await getFundedAssociatedTokenAccount(hacker, tokenMint)) ??
-      new anchor.web3.PublicKey("");
     payerTokenAccount =
       (await getFundedAssociatedTokenAccount(payer, tokenMint)) ??
       new anchor.web3.PublicKey("");
@@ -202,6 +197,25 @@ describe("atomic_swap_spl_test_suite", () => {
       atomicSwapWallet: atomicSwapTokenWallet,
       refunderWallet: aliceTokenAccount,
     };
+  });
+
+  it("Alice should Initiate atomic swap", async () => {
+    const sig = await program.methods
+      .initialize(bob.publicKey, secretHashBytes, amount, expiry)
+      .accounts({
+        atomicSwap: atomicSwapPK,
+        atomicSwapWallet: atomicSwapTokenWallet,
+        feePayer: payer.publicKey,
+        signerWallet: aliceTokenAccount,
+        signer: alice.publicKey,
+        tokenMint: tokenMint,
+      })
+      .signers([payer, alice])
+      .rpc();
+    expect(sig).to.be.not.null;
+  });
+
+  it("Bob can redeem SPL token with the secret", async () => {
     await program.methods
       .initialize(bob.publicKey, secretHashBytes, amount, expiry)
       .accounts({
@@ -214,14 +228,12 @@ describe("atomic_swap_spl_test_suite", () => {
       })
       .signers([payer, alice])
       .rpc();
-  });
 
-  it("Bob can redeem SPL token with the secret", async () => {
     const [, atomicWalletBalanceBefore] = await readAccount(
       atomicSwapTokenWallet,
       provider
     );
-    expect(atomicWalletBalanceBefore).to.equal("100000");
+    expect(atomicWalletBalanceBefore).to.equal(amount.toString());
 
     await program.methods.redeem(secretBytes).accounts(redeemAccounts).rpc();
     const [, atomicWalletBalanceAfter] = await readAccount(
@@ -234,6 +246,18 @@ describe("atomic_swap_spl_test_suite", () => {
   });
 
   it("Bob cannot redeem SPL token with an invalid secret", async () => {
+    await program.methods
+      .initialize(bob.publicKey, secretHashBytes, amount, expiry)
+      .accounts({
+        atomicSwap: atomicSwapPK,
+        atomicSwapWallet: atomicSwapTokenWallet,
+        feePayer: payer.publicKey,
+        signerWallet: aliceTokenAccount,
+        signer: alice.publicKey,
+        tokenMint: tokenMint,
+      })
+      .signers([payer, alice])
+      .rpc();
     let invalidSecret: Array<number> = [];
     invalidSecret.push(...ethers.utils.randomBytes(32));
     expect(program.methods.redeem(invalidSecret).accounts(redeemAccounts).rpc())
@@ -241,19 +265,43 @@ describe("atomic_swap_spl_test_suite", () => {
   });
 
   it("Alice can not refund SPL token before expiry", async () => {
+    await program.methods
+      .initialize(bob.publicKey, secretHashBytes, amount, expiry)
+      .accounts({
+        atomicSwap: atomicSwapPK,
+        atomicSwapWallet: atomicSwapTokenWallet,
+        feePayer: payer.publicKey,
+        signerWallet: aliceTokenAccount,
+        signer: alice.publicKey,
+        tokenMint: tokenMint,
+      })
+      .signers([payer, alice])
+      .rpc();
     expect(program.methods.refund().accounts(refundAccounts).rpc()).throws;
   });
 
   it("Alice can refund SPL token after expiry", async () => {
+    await program.methods
+      .initialize(bob.publicKey, secretHashBytes, amount, expiry)
+      .accounts({
+        atomicSwap: atomicSwapPK,
+        atomicSwapWallet: atomicSwapTokenWallet,
+        feePayer: payer.publicKey,
+        signerWallet: aliceTokenAccount,
+        signer: alice.publicKey,
+        tokenMint: tokenMint,
+      })
+      .signers([payer, alice])
+      .rpc();
     const [, atomicWalletBalanceBefore] = await readAccount(
       atomicSwapTokenWallet,
       provider
     );
-    expect(atomicWalletBalanceBefore).to.equal("100000");
+    expect(atomicWalletBalanceBefore).to.equal(amount.toString());
     const acc = await spl.getAssociatedTokenAddress(tokenMint, alice.publicKey);
     const aliceBalanceBefore = (await spl.getAccount(provider.connection, acc))
       .amount;
-    await new Promise((f) => setTimeout(f, 2500));
+    await new Promise((f) => setTimeout(f, expiryDelta * 1000));
     await program.methods.refund().accounts(refundAccounts).rpc();
 
     const [, atomicWalletBalanceAfter] = await readAccount(
