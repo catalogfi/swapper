@@ -12,8 +12,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Check Home
-        run: echo $HOME
       # - name: Install Docker Desktop
       #   run: |
       #     sudo apt-get update
@@ -39,11 +37,14 @@ jobs:
       #     curl https://getnigiri.vulpem.com | bash
       #     nigiri start
 
-      # - name: Install Rust
-      #   run: |
-      #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      #     source "$HOME/.cargo/env"
-      #     rustup update
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup update
+      
+      - name: Check build BPF
+        run: cargo build-bpf
 
       # - name: Install Solana
       #   run: |
