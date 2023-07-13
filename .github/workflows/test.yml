@@ -38,10 +38,7 @@ jobs:
           nigiri start
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
       - name: Install Solana
         run: |
@@ -49,8 +46,6 @@ jobs:
           source ~/.profile
           solana-keygen new --no-passphrase --force
           solana config set --url http://localhost:8899
-          which solana
-          solana --version
 
       - name: Install Anchor
         run: |
@@ -60,8 +55,11 @@ jobs:
           avm use latest
           export PATH=/home/runner/.avm/bin:$PATH
           source ~/.profile
-          which solana
-          solana --version
+
+      - name: Run Solana Tests
+        run: |
+          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
+          anchor test
 
       - name: Install Node.js LTS
         uses: actions/setup-node@v3
@@ -76,15 +74,6 @@ jobs:
 
       - name: Run Ethereum Tests
         run: npx hardhat test test/AtomicSwapE.ts
-
-      - name: Run Solana Tests
-        run: |
-          export TEMP_PUB=$(anchor keys list | grep -oP '.*:\s*\K.*') && sed -i "s/declare_id!(\".*\");/declare_id!(\"$TEMP_PUB\");/g" ./programs/atomic_swap_spl/src/lib.rs
-          rustup show
-          which solana
-          solana --version
-          cargo update
-          anchor test
 
       - name: Integration Tests
         run: npx hardhat test test/AtomicSwap.ts
