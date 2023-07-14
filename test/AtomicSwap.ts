@@ -13,6 +13,9 @@ import { BuildAtomicSwapScript } from "../bitcoin/AtomicSwap";
 import { mine } from "@nomicfoundation/hardhat-network-helpers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { latestBlock } from "@nomicfoundation/hardhat-network-helpers/dist/src/helpers/time";
+import * as anchor from "@coral-xyz/anchor";
+import { AtomicSwapSpl } from "../target/types/atomic_swap_spl";
+import * as spl from "@solana/spl-token";
 
 use(solidity);
 const indexerURL = "http://localhost:30000";
@@ -34,10 +37,47 @@ describe("--- ATOMIC SWAP ---", () => {
   let aliceB: ECPairInterface;
   let bobB: ECPairInterface;
 
+  let aliceS: anchor.web3.Keypair;
+  let bobS: anchor.web3.Keypair;
+  let payer: anchor.web3.Keypair;
+  let redeemAccounts: Partial<RedeemAccounts>;
+  let refundAccounts: Partial<RefundAccounts>;
+  let atomicSwapTokenWallet: anchor.web3.PublicKey;
+  let secretBytes: Array<number>;
+  let secretHashBytes: Array<number>;
+  let tokenMint: anchor.web3.PublicKey;
+  let atomicSwapPK: anchor.web3.PublicKey;
+  let aliceTokenAccount: anchor.web3.PublicKey;
+  let bobTokenAccount: anchor.web3.PublicKey;
+  let payerTokenAccount: anchor.web3.PublicKey;
+  type RefundAccounts = {
+    atomicSwap: anchor.web3.PublicKey;
+    atomicSwapWallet: anchor.web3.PublicKey;
+    refunder: anchor.web3.PublicKey;
+    refunderWallet: anchor.web3.PublicKey;
+    tokenProgram: anchor.web3.PublicKey;
+    clock: anchor.web3.PublicKey;
+    systemProgram: anchor.web3.PublicKey;
+  };
+  type RedeemAccounts = {
+    atomicSwap: anchor.web3.PublicKey;
+    atomicSwapWallet: anchor.web3.PublicKey;
+    redeemer: anchor.web3.PublicKey;
+    signer: anchor.web3.PublicKey;
+    redeemerWallet: anchor.web3.PublicKey;
+    tokenProgram: anchor.web3.PublicKey;
+    systemProgram: anchor.web3.PublicKey;
+  };
+
   let usdc: TestToken;
   let atomicSwap: AtomicSwap;
 
   let initTxHashes: string[] = [];
+
+  const solanaProvider = anchor.AnchorProvider.local();
+  anchor.setProvider(solanaProvider);
+  const program = anchor.workspace
+    .AtomicSwapSpl as anchor.Program<AtomicSwapSpl>;
 
   const idToHash = (txid: string): Buffer => {
     return Buffer.from(txid, "hex").reverse();
@@ -129,13 +169,130 @@ describe("--- ATOMIC SWAP ---", () => {
 
       initTxHashes[index] = stdout.trim().split(" ")[1];
     });
-  };
+
+    const getPdaParams = async (): Promise<[anchor.web3.PublicKey, number]> => {
+      return anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("atomic_swap"), aliceS.publicKey.toBuffer()],
+        program.programId
+      );
+    };
+
+    const createMint = async (): Promise<anchor.web3.PublicKey> => {
+      const tokenMint = new anchor.web3.Keypair();
+      const lamportsForMint =
+        await solanaProvider.connection.getMinimumBalanceForRentExemption(
+          spl.MintLayout.span
+        );
+      let tx = new anchor.web3.Transaction();
+
+      // Allocate mint
+      tx.add(
+        anchor.web3.SystemProgram.createAccount({
+          programId: spl.TOKEN_PROGRAM_ID,
+          space: spl.MintLayout.span,
+          fromPubkey: solanaProvider.wallet.publicKey,
+          newAccountPubkey: tokenMint.publicKey,
+          lamports: lamportsForMint,
+        })
+      );
+      // Allocate wallet account
+      tx.add(
+        spl.createInitializeMintInstruction(
+          tokenMint.publicKey,
+          6,
+          solanaProvider.wallet.publicKey,
+          solanaProvider.wallet.publicKey
+        )
+      );
+      await solanaProvider.sendAndConfirm(tx, [tokenMint]);
+      return tokenMint.publicKey;
+    };
+
+    const getFundedAssociatedTokenAccount = async (
+      user: anchor.web3.Keypair,
+      mint?: anchor.web3.PublicKey
+    ): Promise<anchor.web3.PublicKey | undefined> => {
+      let userAssociatedTokenAccount: anchor.web3.PublicKey | undefined =
+        undefined;
+
+      if (mint) {
+        // Create a token account for the user and mint some tokens
+        userAssociatedTokenAccount = await spl.getAssociatedTokenAddress(
+          mint,
+          user.publicKey,
+          true,
+          spl.TOKEN_PROGRAM_ID
+        );
+
+        const txFundTokenAccount = new anchor.web3.Transaction();
+        txFundTokenAccount.add(
+          spl.createAssociatedTokenAccountInstruction(
+            user.publicKey,
+            userAssociatedTokenAccount,
+            user.publicKey,
+            mint,
+            spl.TOKEN_PROGRAM_ID
+          )
+        );
+        txFundTokenAccount.add(
+          spl.createMintToInstruction(
+            mint,
+            userAssociatedTokenAccount,
+            solanaProvider.wallet.publicKey,
+            1000000000,
+            []
+          )
+        );
+        await solanaProvider.sendAndConfirm(txFundTokenAccount, [user]);
+      }
+      return userAssociatedTokenAccount;
+    };
+
+    const readAccount = async (
+      accountPublicKey: anchor.web3.PublicKey,
+      provider: anchor.Provider
+    ): Promise<[spl.RawAccount, string]> => {
+      const tokenInfoLol = await provider.connection.getAccountInfo(
+        accountPublicKey
+      );
+      const data = Buffer.from(tokenInfoLol!.data);
+      const accountInfo: spl.RawAccount = spl.AccountLayout.decode(data);
+
+      const amount = accountInfo.amount;
+      return [accountInfo, amount.toString()];
+    };
 
   before(async () => {
     [ownerE, aliceE, bobE, charlieE] = await ethers.getSigners();
 
     aliceB = ECPair.makeRandom({ network });
     bobB = ECPair.makeRandom({ network });
+
+    aliceS = anchor.web3.Keypair.generate();
+    bobS = anchor.web3.Keypair.generate();
+    payer = anchor.web3.Keypair.generate();
+    tokenMint = await createMint();
+    aliceTokenAccount =
+      (await getFundedAssociatedTokenAccount(aliceS, tokenMint)) ??
+      new anchor.web3.PublicKey("");
+
+    bobTokenAccount =
+      (await getFundedAssociatedTokenAccount(bobS, tokenMint)) ??
+      new anchor.web3.PublicKey("");
+    payerTokenAccount =
+      (await getFundedAssociatedTokenAccount(payer, tokenMint)) ??
+      new anchor.web3.PublicKey("");
+    redeemAccounts = {
+      atomicSwap: atomicSwapPK,
+      atomicSwapWallet: atomicSwapTokenWallet,
+      redeemerWallet: aliceTokenAccount,
+    };
+
+    refundAccounts = {
+      atomicSwap: atomicSwapPK,
+      atomicSwapWallet: atomicSwapTokenWallet,
+      refunderWallet: bobTokenAccount,
+    };
 
     const TestToken = await ethers.getContractFactory("TestToken");
     usdc = (await TestToken.deploy(
@@ -1933,4 +2090,321 @@ describe("--- ATOMIC SWAP ---", () => {
       });
     });
   });
+
+  describe("- BITCOIN to SOLANA -", () => {
+    describe("Redeem -", () => {
+      // Alice initiates a swap with Bob on Bitcoin
+      it("Alice should not be able to initiate a swap with no redeemer", async () => {
+        const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
+        if (!aliceAddress) throw new Error("Unable to generate addresses");
+
+        let flag: boolean;
+        try {
+          BuildAtomicSwapScript(
+            sha256(secret1).slice(2),
+            "",
+            aliceAddress,
+            10,
+            network
+          );
+          flag = false;
+        } catch (e: any) {
+          flag = true;
+        }
+
+        expect(flag).to.be.true;
+      });
+
+      it("Alice should be able to initiate a swap", async () => {
+        const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
+        const bobAddress = getP2PKHAddress(bobB.publicKey, network);
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
+
+        const { address: atomicSwapScriptAddress } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
+
+        await sendBTC(aliceB, atomicSwapScriptAddress, 100000000, 0);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        const { data } = await axios.get(
+          `${indexerURL}/address/${atomicSwapScriptAddress}/utxo`
+        );
+
+        expect(data.length).to.be.equal(1);
+
+        const utxo = data[0];
+        expect(utxo.value).to.be.equal(100000000);
+      });
+
+      it("Bob should be able to initiate a swap", async () => {
+        // await expect(
+        //   atomicSwap
+        //     .connect(bobE)
+        //     .initiate(
+        //       aliceE.address,
+        //       (await latestBlock()) + 1000,
+        //       ethers.utils.parseUnits("100", 6n),
+        //       ethers.utils.sha256(secret1)
+        //     )
+        // )
+        //   .to.emit(atomicSwap, "Initiated")
+        //   .withArgs(
+        //     ethers.utils.sha256(secret1),
+        //     ethers.utils.parseUnits("100", 6n)
+        //   );
+        const secretHash = ethers.utils.sha256(secret1);
+        let secretHashBytes: Array<number> = [];
+        secretHashBytes.push(...anchor.utils.bytes.hex.decode(secretHash));
+        expect(
+          await program.methods
+            .initialize(
+              aliceS.publicKey,
+              secretHashBytes,
+              new anchor.BN(1000),
+              new anchor.BN(Date.now() / 1000 + 5)
+            )
+            .accounts({
+              atomicSwap: atomicSwapPK,
+              atomicSwapWallet: atomicSwapTokenWallet,
+              feePayer: payer.publicKey,
+              signerWallet: bobTokenAccount,
+              signer: bobS.publicKey,
+              tokenMint: tokenMint,
+            })
+            .rpc()
+        ).to.be.not.null;
+      });
+
+      // it("Bob should not be able to initiate a swap with the same secret", async () => {
+      //   await expect(
+      //     atomicSwap
+      //       .connect(bobE)
+      //       .initiate(
+      //         aliceE.address,
+      //         (await latestBlock()) + 1000,
+      //         ethers.utils.parseUnits("100", 6n),
+      //         ethers.utils.sha256(secret1)
+      //       )
+      //   ).to.be.revertedWith("AtomicSwap: insecure secret hash");
+      // });
+
+      // Alice redeems the swap on Ethereum
+      // it("Alice should not be able to redeem a swap with no initiator", async () => {
+      //   await expect(
+      //     atomicSwap.connect(aliceE).redeem(randomBytes(32))
+      //   ).to.be.revertedWith(
+      //     "AtomicSwap: order not initated or invalid secret"
+      //   );
+      // });
+
+      // it("Alice should not be able to redeem a swap with invalid secret", async () => {
+      //   await expect(
+      //     atomicSwap.connect(aliceE).redeem(randomBytes(32))
+      //   ).to.be.revertedWith(
+      //     "AtomicSwap: order not initated or invalid secret"
+      //   );
+      // });
+
+      it("Alice should be able to redeem a swap with valid secret", async () => {
+        // await expect(atomicSwap.connect(aliceE).redeem(secret1))
+        //   .to.emit(atomicSwap, "Redeemed")
+        //   .withArgs(
+        //     ethers.utils.sha256(secret1),
+        //     ethers.utils.hexlify(secret1)
+        //   );
+        console.log(
+          await program.methods
+            .redeem(secretBytes)
+            .accounts(redeemAccounts)
+            .rpc()
+        );
+        // expect(await usdc.balanceOf(aliceE.address)).to.equal(
+        //   ethers.utils.parseUnits("100", 6n)
+        // );
+      });
+
+      // it("Alice should not be able to redeem a swap with the same secret", async () => {
+      //   await expect(
+      //     atomicSwap.connect(aliceE).redeem(secret1)
+      //   ).to.be.revertedWith("AtomicSwap: order already fulfilled");
+      // });
+
+      // Bob redeems the swap on Bitcoin
+      it("Bob should not be able to redeem a swap with invalid secret", async () => {
+        const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
+        const bobAddress = getP2PKHAddress(bobB.publicKey, network);
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
+
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
+
+        const tx = new bitcoin.Transaction();
+        tx.version = 2;
+        tx.addInput(idToHash(initTxHashes[0]), 0);
+        tx.addOutput(toOutputScript(bobAddress), 100000000 - 500);
+
+        const hashType = bitcoin.Transaction.SIGHASH_ALL;
+
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
+
+        const redeemScriptSig = bitcoin.payments.p2wsh({
+          redeem: {
+            input: bitcoin.script.compile([
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
+              bobB.publicKey,
+              randomBytes(32),
+              bitcoin.opcodes.OP_TRUE,
+            ]),
+            output: AtomicSwapScript,
+          },
+        });
+        tx.setWitness(0, redeemScriptSig.witness!);
+        const txHex = tx.toHex();
+
+        exec("nigiri push " + txHex, (error, stdout, stderr) => {
+          if (error) {
+            expect(error.message).to.contain(
+              "Script failed an OP_EQUALVERIFY operation"
+            );
+            return;
+          }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      });
+
+      it("Bob should be able to redeem a swap with valid secret", async () => {
+        const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
+        const bobAddress = getP2PKHAddress(bobB.publicKey, network);
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
+
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
+
+        const tx = new bitcoin.Transaction();
+        tx.version = 2;
+        tx.addInput(idToHash(initTxHashes[0]), 0);
+        tx.addOutput(toOutputScript(bobAddress), 100000000 - 500);
+
+        const hashType = bitcoin.Transaction.SIGHASH_ALL;
+
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
+
+        const redeemScriptSig = bitcoin.payments.p2wsh({
+          redeem: {
+            input: bitcoin.script.compile([
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
+              bobB.publicKey,
+              secret1,
+              bitcoin.opcodes.OP_TRUE,
+            ]),
+            output: AtomicSwapScript,
+          },
+        });
+        tx.setWitness(0, redeemScriptSig.witness!);
+
+        const txHex = tx.toHex();
+
+        exec("nigiri push " + txHex, (err, stdout, stderr) => {
+          if (err) throw err;
+          if (stderr) throw new Error(stderr);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        const bobBalance = await getBalance(bobAddress);
+        expect(bobBalance).to.be.equal(1099999500);
+      });
+
+      it("Bob should not be able to redeem a swap with the same secret", async () => {
+        const aliceAddress = getP2PKHAddress(aliceB.publicKey, network);
+        const bobAddress = getP2PKHAddress(bobB.publicKey, network);
+        if (!aliceAddress || !bobAddress)
+          throw new Error("Unable to generate addresses");
+
+        const { AtomicSwapScript } = BuildAtomicSwapScript(
+          sha256(secret1).slice(2),
+          bobAddress,
+          aliceAddress,
+          10,
+          network
+        );
+
+        const tx = new bitcoin.Transaction();
+        tx.version = 2;
+        tx.addInput(idToHash(initTxHashes[0]), 0);
+        tx.addOutput(toOutputScript(bobAddress), 100000000 - 500);
+
+        const hashType = bitcoin.Transaction.SIGHASH_ALL;
+
+        const signatureHash = tx.hashForWitnessV0(
+          0,
+          AtomicSwapScript,
+          100000000,
+          hashType
+        );
+
+        const redeemScriptSig = bitcoin.payments.p2wsh({
+          redeem: {
+            input: bitcoin.script.compile([
+              bitcoin.script.signature.encode(
+                bobB.sign(signatureHash),
+                hashType
+              ),
+              bobB.publicKey,
+              secret1,
+              bitcoin.opcodes.OP_TRUE,
+            ]),
+            output: AtomicSwapScript,
+          },
+        });
+        tx.setWitness(0, redeemScriptSig.witness!);
+
+        const txHex = tx.toHex();
+
+        exec("nigiri push " + txHex, (error, stdout, stderr) => {
+          if (error) {
+            expect(error.message).to.contain(
+              "Transaction already in block chain"
+            );
+            return;
+          }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      });
+    });
+  });
+}
 });

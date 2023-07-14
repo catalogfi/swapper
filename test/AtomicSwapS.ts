@@ -142,7 +142,6 @@ describe("atomic_swap_spl_test_suite", () => {
   };
 
   beforeEach(async () => {
-    // await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(provider.wallet.publicKey, 10000000000000));
     alice = new anchor.web3.Keypair();
     bob = new anchor.web3.Keypair();
     hacker = new anchor.web3.Keypair();
