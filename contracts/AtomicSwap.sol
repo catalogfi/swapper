@@ -104,7 +104,7 @@ contract AtomicSwap {
             isFulfilled: false
         });
         atomicSwapOrders[OrderId] = newOrder;
-        emit Initiated(OrderId, _secretHash, order.initiatedAt, order.amount);
+        emit Initiated(OrderId, _secretHash, newOrder.initiatedAt, newOrder.amount);
         token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
