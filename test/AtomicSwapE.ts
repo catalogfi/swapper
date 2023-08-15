@@ -156,11 +156,10 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       const currentBlock = await ethers.provider.getBlockNumber()
       orderId1 = ethers.utils.sha256(
         ethers.utils.defaultAbiCoder.encode(
-            ["bytes32", "address", "uint256"],
+            ["bytes32", "address"],
             [
                 ethers.utils.sha256(secret1),
-                alice.address,
-                currentBlock + 1,
+                alice.address
             ]
         )
     );
@@ -172,23 +171,13 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
         .to.emit(atomicSwap, "Initiated")
         .withArgs(orderId1,ethers.utils.sha256(secret1),currentBlock+1, ethers.utils.parseUnits("100", 6n));
     });
-
-    // TODO: use multicall to test
-    // it("Alice should not be able to initiate a swap which generates same orderId", async () => {
-    //   await ethers.provider.send("evm_setAutomine", [false]);
-    //   const secret = randomBytes(32)
-    //   atomicSwap
-    //   .connect(alice)
-    //   .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret))
-    //   const tx =
-    //     await atomicSwap
-    //       .connect(alice)
-    //       .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret))
-      
-    //   await ethers.provider.send("evm_mine", []);
-    //   await ethers.provider.send("evm_setAutomine", [true]);
-    //   expect(await tx.wait()).revertedWith("AtomicSwap: invalid secret")
-    // });
+    it("Alice should not be able to initiate a swap with the same secret", async () => {
+      await expect(
+        atomicSwap
+          .connect(alice)
+          .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret1))
+      ).to.be.revertedWith("AtomicSwap: insecure secret hash");
+    });
 
     it("Alice should be able to initiate another swaps with different secret", async () => {
       await usdc.connect(owner).transfer(alice.address, ethers.utils.parseUnits("500", 6n));
@@ -196,11 +185,10 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       let currentBlock = await ethers.provider.getBlockNumber()
       orderId2 = ethers.utils.sha256(
         ethers.utils.defaultAbiCoder.encode(
-            ["bytes32", "address", "uint256"],
+            ["bytes32", "address"],
             [
                 ethers.utils.sha256(secret2),
                 alice.address,
-                currentBlock + 1,
             ]
         )
       )
@@ -215,11 +203,10 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       currentBlock = await ethers.provider.getBlockNumber()
       orderId3 = ethers.utils.sha256(
         ethers.utils.defaultAbiCoder.encode(
-            ["bytes32", "address", "uint256"],
+            ["bytes32", "address"],
             [
                 ethers.utils.sha256(secret3),
                 alice.address,
-                currentBlock + 1,
             ]
         )
       )
@@ -234,11 +221,10 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
         currentBlock = await ethers.provider.getBlockNumber()
         orderId4 = ethers.utils.sha256(
           ethers.utils.defaultAbiCoder.encode(
-              ["bytes32", "address", "uint256"],
+              ["bytes32", "address"],
               [
                   ethers.utils.sha256(secret4),
                   alice.address,
-                  currentBlock + 1,
               ]
           )
         )

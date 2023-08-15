@@ -89,9 +89,7 @@ contract AtomicSwap {
         uint256 _amount,
         bytes32 _secretHash
     ) external checkSafe(_redeemer, msg.sender, _expiry, _amount) {
-        bytes32 OrderId = sha256(
-            abi.encode(_secretHash, msg.sender, block.number)
-        );
+        bytes32 OrderId = sha256(abi.encode(_secretHash, msg.sender));
         Order memory order = atomicSwapOrders[OrderId];
         require(
             order.redeemer == address(0x0),
@@ -127,9 +125,7 @@ contract AtomicSwap {
         require(!order.isFulfilled, "AtomicSwap: order already fulfilled");
         bytes32 secretHash = sha256(_secret);
         require(
-            sha256(
-                abi.encode(secretHash, order.initiator, order.initiatedAt)
-            ) == _orderId,
+            sha256(abi.encode(secretHash, order.initiator)) == _orderId,
             "AtomicSwap: invalid secret"
         );
         order.isFulfilled = true;
