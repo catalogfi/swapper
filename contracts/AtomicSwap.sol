@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity 0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -23,14 +23,20 @@ contract AtomicSwap {
         address redeemer;
         address initiator;
         uint256 expiry;
+        uint256 initiatedAt;
         uint256 amount;
         bool isFulfilled;
     }
     mapping(bytes32 => Order) public atomicSwapOrders;
 
-    event Redeemed(bytes32 indexed secrectHash, bytes _secret);
-    event Initiated(bytes32 indexed secrectHash, uint256 amount);
-    event Refunded(bytes32 indexed secrectHash);
+    event Redeemed(bytes32 indexed secrectHash, bytes secret);
+    event Initiated(
+        bytes32 indexed orderId,
+        bytes32 indexed secretHash,
+        uint256 initiatedAt,
+        uint256 amount
+    );
+    event Refunded(bytes32 indexed orderId);
 
     /**
      * @notice  .
@@ -41,7 +47,7 @@ contract AtomicSwap {
      *              4. amount is not zero
      * @param   redeemer  public address of the reedeem
      * @param   intiator  public address of the initator
-     * @param   expiry  block number for expiry of redemtion
+     * @param   expiry  period in number of blocks brfore the htlc order can expire
      * @param   amount  amount of tokens to trade
      */
     modifier checkSafe(
@@ -56,7 +62,7 @@ contract AtomicSwap {
             "AtomicSwap: redeemer and initiator cannot be the same"
         );
         require(
-            expiry > block.number,
+            expiry > 0,
             "AtomicSwap: expiry cannot be lower than current block"
         );
         require(amount > 0, "AtomicSwap: amount cannot be zero");
@@ -83,7 +89,10 @@ contract AtomicSwap {
         uint256 _amount,
         bytes32 _secretHash
     ) external checkSafe(_redeemer, msg.sender, _expiry, _amount) {
-        Order memory order = atomicSwapOrders[_secretHash];
+        bytes32 OrderId = sha256(
+            abi.encode(_secretHash, msg.sender, block.number)
+        );
+        Order memory order = atomicSwapOrders[OrderId];
         require(
             order.redeemer == address(0x0),
             "AtomicSwap: insecure secret hash"
@@ -92,11 +101,12 @@ contract AtomicSwap {
             redeemer: _redeemer,
             initiator: msg.sender,
             expiry: _expiry,
+            initiatedAt: block.number,
             amount: _amount,
             isFulfilled: false
         });
-        atomicSwapOrders[_secretHash] = newOrder;
-        emit Initiated(_secretHash, newOrder.amount);
+        atomicSwapOrders[OrderId] = newOrder;
+        emit Initiated(OrderId, _secretHash, block.number, _amount);
         token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
@@ -105,16 +115,23 @@ contract AtomicSwap {
      *          token
      * @dev     Signers are not allowed to redeem an order with wrong secret or redeem the same order
      *          multiple times
+     * @param   _orderId  orderIds if the htlc order
      * @param   _secret  secret used to redeem an order
      */
-    function redeem(bytes calldata _secret) external {
-        bytes32 secretHash = sha256(_secret);
-        Order storage order = atomicSwapOrders[secretHash];
+    function redeem(bytes32 _orderId, bytes calldata _secret) external {
+        Order storage order = atomicSwapOrders[_orderId];
         require(
             order.redeemer != address(0x0),
-            "AtomicSwap: order not initated or invalid secret"
+            "AtomicSwap: order not initated"
         );
         require(!order.isFulfilled, "AtomicSwap: order already fulfilled");
+        bytes32 secretHash = sha256(_secret);
+        require(
+            sha256(
+                abi.encode(secretHash, order.initiator, order.initiatedAt)
+            ) == _orderId,
+            "AtomicSwap: invalid secret"
+        );
         order.isFulfilled = true;
         emit Redeemed(secretHash, _secret);
         token.safeTransfer(order.redeemer, order.amount);
@@ -124,18 +141,21 @@ contract AtomicSwap {
      * @notice  Signers can refund the locked assets after expiry block number
      * @dev     Signers cannot refund the an order before epiry block number or refund the same order
      *          multiple times
-     * @param   _secretHash  sha256 hash of the secret used for redemtion
+     * @param   _orderId  orderId of the htlc order
      */
-    function refund(bytes32 _secretHash) external {
-        Order storage order = atomicSwapOrders[_secretHash];
+    function refund(bytes32 _orderId) external {
+        Order storage order = atomicSwapOrders[_orderId];
         require(
             order.redeemer != address(0x0),
             "AtomicSwap: order not initated"
         );
         require(!order.isFulfilled, "AtomicSwap: order already fulfilled");
-        require(block.number > order.expiry, "AtomicSwap: order not expired");
+        require(
+            order.initiatedAt + order.expiry < block.number,
+            "AtomicSwap: order not expired"
+        );
         order.isFulfilled = true;
-        emit Refunded(_secretHash);
+        emit Refunded(_orderId);
         token.safeTransfer(order.initiator, order.amount);
     }
 }
