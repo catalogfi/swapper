@@ -24,6 +24,11 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
   let secret3: Buffer;
   let secret4: Buffer;
 
+  let orderId1 : string;
+  let orderId2 : string;
+  let orderId3 : string;
+  let orderId4 : string;
+
   before(async () => {
     [owner, alice, bob, charlie] = await ethers.getSigners();
 
@@ -93,7 +98,7 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
           .connect(alice)
           .initiate(
             ethers.constants.AddressZero,
-            (await latestBlock()) + 1000,
+            1000,
             ethers.utils.parseUnits("100", 6n),
             randomBytes(32)
           )
@@ -102,7 +107,7 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
 
     it("Alice should not be able to initiate a swap with no amount", async () => {
       await expect(
-        atomicSwap.connect(alice).initiate(bob.address, (await latestBlock()) + 1000, ethers.constants.Zero, randomBytes(32))
+        atomicSwap.connect(alice).initiate(bob.address, 1000, ethers.constants.Zero, randomBytes(32))
       ).to.be.revertedWith("AtomicSwap: amount cannot be zero");
     });
 
@@ -110,15 +115,15 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(alice.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
+          .initiate(alice.address,1000, ethers.utils.parseUnits("100", 6n), randomBytes(32))
       ).to.be.revertedWith("AtomicSwap: redeemer and initiator cannot be the same");
     });
 
-    it("Alice should not be able to initiate a swap with a past block number", async () => {
+    it("Alice should not be able to initiate a swap with a 0 expiry", async () => {
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) - 1, ethers.utils.parseUnits("100", 6n), randomBytes(32))
+          .initiate(bob.address, 0, ethers.utils.parseUnits("100", 6n), randomBytes(32))
       ).to.be.revertedWith("AtomicSwap: expiry cannot be lower than current block");
     });
 
@@ -129,7 +134,7 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+          .initiate(bob.address, 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
       ).to.be.revertedWith("ERC20: insufficient allowance");
     });
 
@@ -143,73 +148,131 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
+          .initiate(bob.address, 1000, ethers.utils.parseUnits("200", 6n), randomBytes(32))
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
     });
 
     it("Alice should be able to initiate a swap", async () => {
+      const currentBlock = await ethers.provider.getBlockNumber()
+      orderId1 = ethers.utils.sha256(
+        ethers.utils.defaultAbiCoder.encode(
+            ["bytes32", "address", "uint256"],
+            [
+                ethers.utils.sha256(secret1),
+                alice.address,
+                currentBlock + 1,
+            ]
+        )
+    );
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret1))
+          .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret1))
       )
         .to.emit(atomicSwap, "Initiated")
-        .withArgs(ethers.utils.sha256(secret1), ethers.utils.parseUnits("100", 6n));
+        .withArgs(orderId1,ethers.utils.sha256(secret1),currentBlock+1, ethers.utils.parseUnits("100", 6n));
     });
 
-    it("Alice should not be able to initiate a swap with the same secret", async () => {
-      await expect(
-        atomicSwap
-          .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret1))
-      ).to.be.revertedWith("AtomicSwap: insecure secret hash");
-    });
+    // TODO: use multicall to test
+    // it("Alice should not be able to initiate a swap which generates same orderId", async () => {
+    //   await ethers.provider.send("evm_setAutomine", [false]);
+    //   const secret = randomBytes(32)
+    //   atomicSwap
+    //   .connect(alice)
+    //   .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret))
+    //   const tx =
+    //     await atomicSwap
+    //       .connect(alice)
+    //       .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret))
+      
+    //   await ethers.provider.send("evm_mine", []);
+    //   await ethers.provider.send("evm_setAutomine", [true]);
+    //   expect(await tx.wait()).revertedWith("AtomicSwap: invalid secret")
+    // });
 
     it("Alice should be able to initiate another swaps with different secret", async () => {
       await usdc.connect(owner).transfer(alice.address, ethers.utils.parseUnits("500", 6n));
       expect(await usdc.balanceOf(alice.address)).to.equal(ethers.utils.parseUnits("500", 6n));
-
+      let currentBlock = await ethers.provider.getBlockNumber()
+      orderId2 = ethers.utils.sha256(
+        ethers.utils.defaultAbiCoder.encode(
+            ["bytes32", "address", "uint256"],
+            [
+                ethers.utils.sha256(secret2),
+                alice.address,
+                currentBlock + 1,
+            ]
+        )
+      )
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret2))
+          .initiate(bob.address, 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret2))
       )
         .to.emit(atomicSwap, "Initiated")
-        .withArgs(ethers.utils.sha256(secret2), ethers.utils.parseUnits("100", 6n));
+        .withArgs(orderId2,ethers.utils.sha256(secret2),currentBlock+1, ethers.utils.parseUnits("100", 6n));
 
+      currentBlock = await ethers.provider.getBlockNumber()
+      orderId3 = ethers.utils.sha256(
+        ethers.utils.defaultAbiCoder.encode(
+            ["bytes32", "address", "uint256"],
+            [
+                ethers.utils.sha256(secret3),
+                alice.address,
+                currentBlock + 1,
+            ]
+        )
+      )
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret3))
+          .initiate(bob.address,1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret3))
       )
         .to.emit(atomicSwap, "Initiated")
-        .withArgs(ethers.utils.sha256(secret3), ethers.utils.parseUnits("100", 6n));
+        .withArgs(orderId3,ethers.utils.sha256(secret3),currentBlock+1, ethers.utils.parseUnits("100", 6n));
 
+        currentBlock = await ethers.provider.getBlockNumber()
+        orderId4 = ethers.utils.sha256(
+          ethers.utils.defaultAbiCoder.encode(
+              ["bytes32", "address", "uint256"],
+              [
+                  ethers.utils.sha256(secret4),
+                  alice.address,
+                  currentBlock + 1,
+              ]
+          )
+        )
       await expect(
         atomicSwap
           .connect(alice)
-          .initiate(bob.address, (await latestBlock()) + 1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret4))
+          .initiate(bob.address,  1000, ethers.utils.parseUnits("100", 6n), ethers.utils.sha256(secret4))
       )
         .to.emit(atomicSwap, "Initiated")
-        .withArgs(ethers.utils.sha256(secret4), ethers.utils.parseUnits("100", 6n));
+        .withArgs(orderId4,ethers.utils.sha256(secret4),currentBlock+1, ethers.utils.parseUnits("100", 6n));
     });
   });
 
   describe("- Atomic Swap - Redeem -", () => {
     it("Bob should not be able to redeem a swap with no initiator", async () => {
-      await expect(atomicSwap.connect(bob).redeem(randomBytes(32))).to.be.revertedWith(
-        "AtomicSwap: order not initated or invalid secret"
+      await expect(atomicSwap.connect(bob).redeem(randomBytes(32),randomBytes(32))).to.be.revertedWith(
+        "AtomicSwap: order not initated"
+      );
+    });
+
+    it("Bob should not be able to redeem a swap with invalid orderId", async () => {
+      await expect(atomicSwap.connect(bob).redeem(randomBytes(32),randomBytes(32))).to.be.revertedWith(
+        "AtomicSwap: order not initated"
       );
     });
 
     it("Bob should not be able to redeem a swap with invalid secret", async () => {
-      await expect(atomicSwap.connect(bob).redeem(randomBytes(32))).to.be.revertedWith(
-        "AtomicSwap: order not initated or invalid secret"
+      await expect(atomicSwap.connect(bob).redeem(orderId1,randomBytes(32))).to.be.revertedWith(
+        "AtomicSwap: invalid secret"
       );
     });
 
     it("Bob should be able to redeem a swap with valid secret", async () => {
-      await expect(atomicSwap.connect(bob).redeem(secret1))
+      await expect(atomicSwap.connect(bob).redeem(orderId1,secret1))
         .to.emit(atomicSwap, "Redeemed")
         .withArgs(ethers.utils.sha256(secret1), ethers.utils.hexlify(secret1));
 
@@ -217,11 +280,11 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
     });
 
     it("Bob should not be able to redeem a swap with the same secret", async () => {
-      await expect(atomicSwap.connect(bob).redeem(secret1)).to.be.revertedWith("AtomicSwap: order already fulfilled");
+      await expect(atomicSwap.connect(bob).redeem(orderId1,secret1)).to.be.revertedWith("AtomicSwap: order already fulfilled");
     });
 
     it("Bob should receive the correct amount even if Charlie redeems with valid secret", async () => {
-      await expect(atomicSwap.connect(charlie).redeem(secret2))
+      await expect(atomicSwap.connect(charlie).redeem(orderId2,secret2))
         .to.emit(atomicSwap, "Redeemed")
         .withArgs(ethers.utils.sha256(secret2), ethers.utils.hexlify(secret2));
 
@@ -236,13 +299,13 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
     });
 
     it("Alice should not be able to refund a swap that is already redeemed", async () => {
-      await expect(atomicSwap.connect(alice).refund(ethers.utils.sha256(secret1))).to.be.revertedWith(
+      await expect(atomicSwap.connect(alice).refund(orderId1)).to.be.revertedWith(
         "AtomicSwap: order already fulfilled"
       );
     });
 
     it("Alice should not be able to refund a swap earlier than the locktime", async () => {
-      await expect(atomicSwap.connect(alice).refund(ethers.utils.sha256(secret3))).to.be.revertedWith(
+      await expect(atomicSwap.connect(alice).refund(orderId3)).to.be.revertedWith(
         "AtomicSwap: order not expired"
       );
     });
@@ -250,23 +313,23 @@ describe("--- ATOMIC SWAP - ETHEREUM ---", () => {
     it("Alice should be able to refund a swap after the locktime", async () => {
       mine((await ethers.provider.getBlockNumber()) + 1000);
 
-      await expect(atomicSwap.connect(alice).refund(ethers.utils.sha256(secret3)))
+      await expect(atomicSwap.connect(alice).refund(orderId3))
         .to.emit(atomicSwap, "Refunded")
-        .withArgs(ethers.utils.sha256(secret3));
+        .withArgs(orderId3);
 
       expect(await usdc.balanceOf(alice.address)).to.equal(ethers.utils.parseUnits("300", 6n));
     });
 
     it("Alice should not be able to refund a swap that is already refunded", async () => {
-      await expect(atomicSwap.connect(alice).refund(ethers.utils.sha256(secret3))).to.be.revertedWith(
+      await expect(atomicSwap.connect(alice).refund(orderId3)).to.be.revertedWith(
         "AtomicSwap: order already fulfilled"
       );
     });
 
     it("Alice should receive the correct amount even if Charlie refunds after the locktime", async () => {
-      await expect(atomicSwap.connect(charlie).refund(ethers.utils.sha256(secret4)))
+      await expect(atomicSwap.connect(charlie).refund(orderId4))
         .to.emit(atomicSwap, "Refunded")
-        .withArgs(ethers.utils.sha256(secret4));
+        .withArgs(orderId4);
 
       expect(await usdc.balanceOf(alice.address)).to.equal(ethers.utils.parseUnits("400", 6n));
       expect(await usdc.balanceOf(charlie.address)).to.equal(ethers.utils.parseUnits("0", 6n));
