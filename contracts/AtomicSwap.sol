@@ -47,7 +47,7 @@ contract AtomicSwap {
      *              4. amount is not zero
      * @param   redeemer  public address of the reedeem
      * @param   intiator  public address of the initator
-     * @param   expiry  period in number of blocks brfore the htlc order can expire
+     * @param   expiry  expiry in period for the htlc order
      * @param   amount  amount of tokens to trade
      */
     modifier checkSafe(
@@ -79,7 +79,7 @@ contract AtomicSwap {
      *          and sha256 hash should be used to support hashing methods on other non-evm chains.
      *          Signers cannot generate orders with same secret hash or override an existing order.
      * @param   _redeemer  public address of the redeemer
-     * @param   _expiry  block number for expiry of redemtion
+     * @param   _expiry  expiry in period for the htlc order
      * @param   _amount  amount of tokens to trade
      * @param   _secretHash  sha256 hash of the secret used for redemtion
      */
