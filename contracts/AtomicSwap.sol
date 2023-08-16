@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -29,7 +29,7 @@ contract AtomicSwap {
     }
     mapping(bytes32 => Order) public atomicSwapOrders;
 
-    event Redeemed(bytes32 indexed secrectHash, bytes secret);
+    event Redeemed(bytes32 orderId, bytes32 indexed secrectHash, bytes secret);
     event Initiated(
         bytes32 indexed orderId,
         bytes32 indexed secretHash,
@@ -63,7 +63,7 @@ contract AtomicSwap {
         );
         require(
             expiry > 0,
-            "AtomicSwap: expiry cannot be lower than current block"
+            "AtomicSwap: expiry should be greater than zero"
         );
         require(amount > 0, "AtomicSwap: amount cannot be zero");
         _;
@@ -93,7 +93,7 @@ contract AtomicSwap {
         Order memory order = atomicSwapOrders[OrderId];
         require(
             order.redeemer == address(0x0),
-            "AtomicSwap: insecure secret hash"
+            "AtomicSwap: duplicate order"
         );
         Order memory newOrder = Order({
             redeemer: _redeemer,
@@ -104,7 +104,12 @@ contract AtomicSwap {
             isFulfilled: false
         });
         atomicSwapOrders[OrderId] = newOrder;
-        emit Initiated(OrderId, _secretHash, newOrder.initiatedAt, newOrder.amount);
+        emit Initiated(
+            OrderId,
+            _secretHash,
+            newOrder.initiatedAt,
+            newOrder.amount
+        );
         token.safeTransferFrom(msg.sender, address(this), newOrder.amount);
     }
 
@@ -129,7 +134,7 @@ contract AtomicSwap {
             "AtomicSwap: invalid secret"
         );
         order.isFulfilled = true;
-        emit Redeemed(secretHash, _secret);
+        emit Redeemed(_orderId, secretHash, _secret);
         token.safeTransfer(order.redeemer, order.amount);
     }
 
