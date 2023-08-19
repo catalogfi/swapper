@@ -29,7 +29,11 @@ contract AtomicSwap {
     }
     mapping(bytes32 => Order) public atomicSwapOrders;
 
-    event Redeemed(bytes32 orderId, bytes32 indexed secrectHash, bytes secret);
+    event Redeemed(
+        bytes32 indexed orderId,
+        bytes32 indexed secrectHash,
+        bytes secret
+    );
     event Initiated(
         bytes32 indexed orderId,
         bytes32 indexed secretHash,
@@ -61,10 +65,7 @@ contract AtomicSwap {
             intiator != redeemer,
             "AtomicSwap: redeemer and initiator cannot be the same"
         );
-        require(
-            expiry > 0,
-            "AtomicSwap: expiry should be greater than zero"
-        );
+        require(expiry > 0, "AtomicSwap: expiry should be greater than zero");
         require(amount > 0, "AtomicSwap: amount cannot be zero");
         _;
     }
@@ -91,10 +92,7 @@ contract AtomicSwap {
     ) external checkSafe(_redeemer, msg.sender, _expiry, _amount) {
         bytes32 OrderId = sha256(abi.encode(_secretHash, msg.sender));
         Order memory order = atomicSwapOrders[OrderId];
-        require(
-            order.redeemer == address(0x0),
-            "AtomicSwap: duplicate order"
-        );
+        require(order.redeemer == address(0x0), "AtomicSwap: duplicate order");
         Order memory newOrder = Order({
             redeemer: _redeemer,
             initiator: msg.sender,
