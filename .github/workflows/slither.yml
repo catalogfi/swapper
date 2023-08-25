@@ -1,0 +1,30 @@
+name: Slither Analysis
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Node.js LTS
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+
+      - name: Install Project Dependencies
+        run: yarn install
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.3.0
+        with:
+          node-version: 18
+          fail-on: high
+          solc-version: 0.8.18
+          target: contracts/**/*.sol
+          slither-args: "--solc-remaps '@=node_modules/@'"
